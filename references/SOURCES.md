@@ -19,11 +19,11 @@ Observed on 2026-09-09 from https://faucet.testnet.chain.robinhood.com/ and `/ad
 | `privacy-toggle.svg` | `/privacy_toggle_icon.svg` |
 | `google.svg` | `/google_icon.svg` |
 
-Observed application stack: Next.js, React, Tailwind CSS, RainbowKit/wagmi/viem, Cloudflare Turnstile, Google Sign-In/NextAuth, Usercentrics. Reconstruction stack: Vite, React, TypeScript, CSS Modules, RainbowKit/wagmi/viem. Retains the visual rules and public wallet functionality as readable components instead of replaying the site's compiled bundles.
+Observed application stack: Next.js, React, Tailwind CSS, RainbowKit/wagmi/viem, Cloudflare Turnstile, Google Sign-In/NextAuth, Usercentrics. Reconstruction stack: Vite, React, TypeScript, CSS Modules, a native EIP-1193 provider adapter, and EIP-6963 wallet discovery. Retains the visual rules and public wallet functionality as readable components instead of replaying the site's compiled bundles.
 
 At 1440px viewport width, original measurements: main width 1200px, main height 1916px, hero heading y=178px and height=60px, form x=485px, y=558px, width=470px, height=376px. At 375px viewport width: form x=33px, y=539.25px, width=309px, height=450px. The copy and font files are taken from the actual reference, not inferred from screenshots.
 
-Intentional differences: no original tracking scripts; privacy dialog describes this replica; no real CAPTCHA/OAuth/distribution without owner configuration; extension-only wallet connections by default; WalletConnect requires the owner's project ID; invalid recipients get an inline error; keyboard focus is visible; background animation respects reduced motion. Public brand assets retain upstream rights.
+Intentional differences: no original tracking scripts; privacy dialog describes this replica; no real CAPTCHA/OAuth/distribution without owner configuration; EIP-6963 discovers only installed browser wallets with a legacy `window.ethereum` fallback and no WalletConnect dependency; invalid recipients get an inline error; keyboard focus is visible; background animation respects reduced motion. Public brand assets retain upstream rights.
 
 ## 用户更新的 Logo
 

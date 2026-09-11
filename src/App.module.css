@@ -42,6 +42,17 @@
 .heroHeading h2 { font-weight: 450; letter-spacing: -.035em; text-wrap: balance; font-size: 60px; line-height: 1; color: var(--text); }
 .heroHeading p { max-width: 672px; font-size: 16px; line-height: 1.375; letter-spacing: -.025em; color: var(--muted); }
 .walletButton { border-radius: 8px; background: var(--accent); color: var(--accent-ink); padding: 8px 16px; font: 600 18px/28px var(--mono); transition: background-color 150ms, transform 120ms; }
+.walletList { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.walletOption { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-align: left; }
+.walletIcon, .walletIconFallback { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 9px; }
+.walletIcon { display: block; object-fit: contain; background: var(--panel); }
+.walletIconFallback { display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font: 700 18px/1 var(--mono); }
+.walletIdentity { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.walletIdentity strong { font-size: 15px; line-height: 20px; }
+.walletIdentity small { color: var(--muted); font: 11px/16px var(--mono); }
+.walletSelected { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: var(--success); font-size: 11px; line-height: 16px; }
+.walletEmpty { margin-top: 20px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 13px; line-height: 19px; }
+.walletNotice { margin-top: 16px; color: var(--muted); font-size: 11px; line-height: 16px; }
 .faucet { position: relative; display: flex; flex-direction: column; gap: 20px; width: 536px; max-width: 100%; padding: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .addLink { position: absolute; right: 8px; top: 12px; display: flex; align-items: center; gap: 6px; color: var(--muted); font: 12px/1 var(--mono); }
 .faucetIntro { display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -126,6 +137,7 @@
 .backLink svg { transform: rotate(180deg); }
 @media (hover: hover) {
   .walletButton:not(:disabled):hover { background: var(--accent-hover); }
+  .walletOption:hover { border-color: var(--accent); background: #ccff0008; }
   .primaryButton:not(:disabled):hover { background: var(--accent-hover); }
   .token:is(button):not(:disabled):hover, .importAll:not(:disabled):hover { border-color: var(--accent); }
   .addLink:hover, .backLink:hover, .transactionLink:hover { color: var(--accent); }

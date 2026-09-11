@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useTestnetWallet } from './WalletProvider';
+import { useTestnetWallet, WalletSelectionCancelledError } from './WalletProvider';
 import { isRecipient } from '../lib/api';
 import { distribution, anubisTestnet, tokens } from '../lib/chain';
 import { ClaimDialog } from './ClaimDialog';
@@ -14,9 +14,20 @@ export function Faucet({ navigate, notify }: { navigate: (path: string) => void;
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const autoFilledAddress = useRef<string | undefined>(undefined);
   const valid = isRecipient(address.trim());
 
-  useEffect(() => { if (walletAddress) setAddress(current => current || walletAddress); }, [walletAddress]);
+  useEffect(() => {
+    if (!walletAddress) return;
+    const previous = autoFilledAddress.current;
+    autoFilledAddress.current = walletAddress;
+    setAddress(current => {
+      if (current === '' || (previous && current.trim().toLowerCase() === previous.toLowerCase())) {
+        return walletAddress;
+      }
+      return current;
+    });
+  }, [walletAddress]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -42,7 +53,9 @@ export function Faucet({ navigate, notify }: { navigate: (path: string) => void;
         if (!accepted) { notify('Token import was cancelled in your wallet.'); return; }
       }
       notify(selected.length > 1 ? 'Testnet tokens imported to your wallet.' : `${selected[0].symbol} imported to your wallet.`);
-    } catch { notify('Token import was not completed. Check your wallet and try again.'); }
+    } catch (error) {
+      if (!(error instanceof WalletSelectionCancelledError)) notify('Token import was not completed. Check your wallet and try again.');
+    }
     finally { setImporting(false); }
   }
 

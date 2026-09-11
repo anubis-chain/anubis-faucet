@@ -92,7 +92,7 @@ VITE_FAUCET_API_URL=/
 VITE_TURNSTILE_SITE_KEY=0x4AAAAAAEv-TZyEqCPXlFdQ
 ```
 
-`Site Key` 是公开值。当前 production build guard 只接受上述 `Anubis Faucet` widget 的公开 Site Key；若日后有意替换 widget，必须同步审阅 build guard、server-side Secret 与 hostname。**Secret Key 和私钥绝不能放进 `VITE_` 变量**，这些变量会进入浏览器代码。目前前端直接使用浏览器注入的 EIP-1193 wallet provider，不使用 WalletConnect Project ID。
+`Site Key` 是公开值。当前 production build guard 只接受上述 `Anubis Faucet` widget 的公开 Site Key；若日后有意替换 widget，必须同步审阅 build guard、server-side Secret 与 hostname。**Secret Key 和私钥绝不能放进 `VITE_` 变量**，这些变量会进入浏览器代码。目前前端以 EIP-6963 发现并选择浏览器已安装的钱包，再直接使用所选钱包的 EIP-1193 provider；不使用 WalletConnect Project ID，也不持久保存钱包选择。
 
 Vite 的环境变量在构建时写入产物，修改后需要重新构建。已有 `.env.local` 或 `.env.production.local` 时检查是否覆盖了目标值。前端 API 留空会禁用领取。
 

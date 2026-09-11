@@ -1,4 +1,4 @@
-import { useTestnetWallet } from './WalletProvider';
+import { useTestnetWallet, WalletSelectionCancelledError } from './WalletProvider';
 import { anubisTestnet } from '../lib/chain';
 import { brand } from '../lib/brand';
 import { Icon } from './Icon';
@@ -21,7 +21,9 @@ export function AddChain({ navigate, notify }: { navigate: (path: string) => voi
       await switchChainAsync({ chainId: anubisTestnet.id });
       notify(`${brand.name} is ready in your wallet.`);
     }
-    catch { notify('The network was not added. Please check your wallet and try again.'); }
+    catch (error) {
+      if (!(error instanceof WalletSelectionCancelledError)) notify('The network was not added. Please check your wallet and try again.');
+    }
   }
   return <>
     <div className={`${s.heroHeading} ${s.chainHeading}`}><h2>Add Testnet to wallet</h2></div>

@@ -42,7 +42,7 @@ Cloudflare 账户、部署域名、新建 D1、Turnstile Site Key 和 Secret Key
 
 2026-09-09，将 ERC-20 交接 ZIP 解压到独立目录并使用包内配置进行验证：`npm ci` 安装成功，`npm test` 的 38 项测试全部通过，`npm run worker:check` 的生产构建和 Worker dry-run 通过，`npm run db:migrate:local` 建表成功。交接包未在接手者账户创建资源；现有站点已发布，未执行真实资金转账。其后已确认 Anubis pre-Aria 的派发与 gas 均从发币钱包的 DAI system-contract balance 扣除。
 
-2026-09-11，AWS 人工部署版本已改用原生 EIP-1193 browser wallet provider，移除 RainbowKit、Wagmi、React Query 与 WalletConnect 依赖。重新通过 23 项 Worker 测试、17 项浏览器测试、production build；完整与 production-only `npm audit` 均为 0 vulnerabilities。AWS Lambda backend 另有 43 项测试全部通过。
+2026-09-11，AWS 人工部署版本已改用原生 EIP-1193 browser wallet provider，并以 EIP-6963 提供只限已安装浏览器钱包的轻量选择器；`window.ethereum` 只作旧式钱包后备，选择只留在页面内存。RainbowKit、Wagmi、React Query 与 WalletConnect 依赖均已移除。重新通过 23 项 Worker 测试、20 项浏览器测试、production build；完整与 production-only `npm audit` 均为 0 vulnerabilities。AWS Lambda backend 另有 48 项测试全部通过。
 
 ZIP 同目录的 `.sha256` 文件用于核对整个压缩包；解压后在项目根目录运行 `shasum -a 256 -c MANIFEST.sha256` 可以验证包内文件。Linux 也可用 `sha256sum -c MANIFEST.sha256`。配置修改后相应文件的哈希变化属于预期。
 

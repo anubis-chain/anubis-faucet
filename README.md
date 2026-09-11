@@ -44,7 +44,7 @@
 
 2026-09-09，将 ERC-20 交接 ZIP 解压到独立目录并使用包内配置进行验证：`npm ci` 安装成功，`npm test` 的 38 项测试全部通过，`npm run worker:check` 的生产构建和 Worker dry-run 通过，`npm run db:migrate:local` 建表成功。交接包未在接手者账户创建资源；现有站点已发布，未执行真实资金转账。其後已確認 Anubis pre-Aria 的派發與 gas 均從發幣錢包的 DAI system-contract balance 扣除。
 
-2026-09-11，AWS 人工部署版本已改用原生 EIP-1193 browser wallet provider，移除 RainbowKit、Wagmi、React Query 與 WalletConnect 依賴。重新通過 23 項 Worker 測試、17 項瀏覽器測試、production build；完整與 production-only `npm audit` 均為 0 vulnerabilities。AWS Lambda backend 另有 43 項測試全部通過。
+2026-09-11，AWS 人工部署版本已改用原生 EIP-1193 browser wallet provider，並以 EIP-6963 提供只限已安裝瀏覽器錢包的輕量選擇器；`window.ethereum` 只作舊式錢包後備，選擇只留在頁面記憶體。RainbowKit、Wagmi、React Query 與 WalletConnect 依賴均已移除。重新通過 23 項 Worker 測試、20 項瀏覽器測試、production build；完整與 production-only `npm audit` 均為 0 vulnerabilities。AWS Lambda backend 另有 48 項測試全部通過。
 
 ZIP 同目录的 `.sha256` 文件用于核对整个压缩包；解压后在项目根目录运行 `shasum -a 256 -c MANIFEST.sha256` 可以验证包内文件。Linux 也可用 `sha256sum -c MANIFEST.sha256`。配置修改后相应文件的哈希变化属于预期。
 
