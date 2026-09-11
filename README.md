@@ -2,6 +2,14 @@
 
 目前的接管部署目標是 AWS Singapore，以 CloudFront、WAF、私有 S3、Lambda、DynamoDB 與 Secrets Manager 作人工部署；Cloudflare 只保留 DNS 與 Turnstile。請先閱讀 [AWS 手動部署手冊](docs/AWS-MANUAL-DEPLOY.zh-TW.md)。`worker/`、D1 migration、`wrangler.jsonc` 及原 Cloudflare 部署文件保留作交接參考與回歸測試，並非新 production 路徑。
 
+## 正式環境
+
+- 網站：<https://anubisfaucets.com>
+- 部署分支：`deploy/aws-production`
+- AWS 區域：Singapore (`ap-southeast-1`)
+- 發布方式：人工 AWS CDK 部署，目前沒有 CI/CD
+- Cloudflare：DNS 與 Turnstile
+
 原始開發交接內容如下。
 
 这是可修改、可重新构建的完整源码交接包。先阅读 [部署文档](docs/DEPLOY.zh-CN.md)，再填写配置并发布。无需访问原开发者电脑，也无需 MCP。
@@ -13,7 +21,7 @@
 - Anubis Test，Chain ID `202601`，ERC-20 `DAI`，每次 `1 DAI`；合约 `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`，18 位精度。
 - 地址和 IP 各自限制 24 小时一次；服务端验证 Cloudflare Turnstile。
 - Workers Secrets 托管发币私钥；D1 原子占用额度、持久化签名交易，每分钟 Cron 恢复和核对交易。
-- 23 项 Worker 测试和 17 项浏览器测试，包括重复地球、錢包連線與 API 安全回歸測試。
+- 23 项 Worker 测试和 20 项浏览器测试，包括重复地球、錢包連線與 API 安全回歸測試。
 
 ## 接手者需要准备
 
