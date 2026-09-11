@@ -13,12 +13,6 @@ export function utcDay(now) {
   return new Date(now * 1000).toISOString().slice(0, 10);
 }
 
-export function secondsUntilNextUtcDay(now) {
-  const date = new Date(now * 1000);
-  const next = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1) / 1000;
-  return Math.max(1, Math.ceil(next - now));
-}
-
 function terminalExpiry(now, config) {
   return now + config.claimRetentionSeconds;
 }
@@ -95,10 +89,9 @@ export function buildReservePlan({ tableName, claimId, address, ipHash, tokenHas
           Update: {
             TableName: tableName,
             Key: itemKey.daily(day),
-            UpdateExpression: 'SET #entity = if_not_exists(#entity, :entity), #day = :day, updatedAt = :now ADD claimCount :one',
-            ConditionExpression: 'attribute_not_exists(claimCount) OR claimCount < :cap',
+            UpdateExpression: 'SET #entity = :entity, #day = :day, updatedAt = :now ADD claimCount :one',
             ExpressionAttributeNames: { '#entity': 'entity', '#day': 'day' },
-            ExpressionAttributeValues: { ':entity': 'daily_cap', ':day': day, ':now': now, ':one': 1, ':cap': config.dailyClaimCap },
+            ExpressionAttributeValues: { ':entity': 'daily_count', ':day': day, ':now': now, ':one': 1 },
           },
         },
         {

@@ -56,6 +56,28 @@ test('expired preparing cleanup treats a concurrent terminal transition as no-op
   assert.equal(await new DynamoClaimStore({ client, config }).expirePreparing(1000), false);
 });
 
+test('reservation conflict checks only cooldown, replay and active-lock records', async () => {
+  const keys = [];
+  const client = { send: async command => {
+    keys.push(command.input.Key.pk);
+    return {};
+  } };
+  const store = new DynamoClaimStore({ client, config });
+  await store.throwReservationConflict({
+    address: claim.address,
+    ipHash: claim.ipHash,
+    tokenHash: claim.tokenHash,
+    now: 1000,
+  });
+  assert.deepEqual(keys, [
+    `COOLDOWN#ADDRESS#${claim.address}`,
+    `COOLDOWN#IP#${claim.ipHash}`,
+    `REPLAY#TURNSTILE#${claim.tokenHash}`,
+    'LOCK#ACTIVE',
+  ]);
+  assert.ok(keys.every(key => !key.startsWith('CAP#DAY#')));
+});
+
 test('health rejects a corrupt or mismatched active lock', async () => {
   const corrupt = new DynamoClaimStore({
     config,

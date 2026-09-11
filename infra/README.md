@@ -140,6 +140,14 @@ must reject new claims while `FAUCET_ENABLED` is false, and staging must reject
 every recipient except its configured allowlist; the reconciliation handler
 intentionally continues processing already signed claims.
 
+There is no whole-site daily claim limit. The per-address and source-network
+cooldowns, Turnstile replay protection, WAF rate limit, and one-active-transaction
+lock remain enabled, but distributed traffic from many valid addresses and
+networks can continue until the sender balance is depleted or the faucet is
+disabled. Keep the sender balance conservative and monitor claim volume. The
+historical `CAP#DAY#...` DynamoDB key is retained only as an uncapped audit
+counter and is never checked to authorize a claim.
+
 For a single approved staging test, enable with both gates:
 
 ```sh
@@ -162,7 +170,7 @@ wallet for manual transfers or another service. The DynamoDB active lock is
 stage-local, so shared keys would allow independent signers to race the same
 account nonce. Before enabling production, redeploy staging with
 `-c faucetEnabled=false`, verify `FAUCET_DISABLED`, and prove staging has no
-`preparing` or `signed` claim. The cooldown and daily cap are also stage-local;
+`preparing` or `signed` claim. The cooldown is also stage-local;
 leaving both public stages enabled would let the same recipient claim once from
 each hostname.
 
@@ -181,6 +189,15 @@ npx cdk deploy --all --require-approval broadening \
   --parameters AnubisFaucet-Production:AlertEmail=alerts@example.com \
   --profile PROFILE
 ```
+
+After the new production secret, distinct funded sender, SNS subscription, and
+health checks are ready, run the first approved 1-token production claim with a
+single-recipient gate by passing both `-c faucetEnabled=true` and
+`-c allowedClaimAddress=0xAPPROVED_TEST_RECIPIENT`. Confirm its exact receipt
+and cooldown behavior. For the subsequent public release, redeploy with
+`-c faucetEnabled=true` while omitting `allowedClaimAddress`, then verify the
+deployed Lambda environment no longer contains that variable. The health
+response intentionally does not expose the allowlist.
 
 Omit the `AlertEmail` parameter to create the topic without an email
 subscription. Production has CloudFormation termination protection plus S3,
@@ -256,8 +273,9 @@ incident review.
 
 The stack intentionally uses the regional shared Lambda concurrency pool. New
 AWS accounts can have a quota of only 10, and Lambda requires all 10 to remain
-unreserved. WAF rate limits, the daily cap, and DynamoDB's atomic active lock
-remain the payout-safety controls. Do not increase faucet traffic after raising
+unreserved. WAF rate limits, per-recipient/network cooldowns, and DynamoDB's
+atomic active lock remain payout-safety controls, but none is a whole-site daily
+payout ceiling. Do not increase faucet traffic after raising
 the regional concurrency quota until the same reviewed change reserves 5
 executions for the API and 1 for reconciliation (minimum regional quota 16).
 

@@ -35,10 +35,11 @@ If dependencies and scripts are managed only by the root package instead, add th
 
 ## Canonical Lambda environment contract
 
-All entries below are required unless a default is shown. Fee values are decimal strings in 18-decimal pre-Aria DAI wei. Production cap values must be approved from live RPC evidence; do not copy arbitrary examples.
+All entries below are required unless a default is shown. Fee values are decimal strings in 18-decimal pre-Aria DAI wei. Production gas and fee safety values must be approved from live RPC evidence; do not copy arbitrary examples.
 
 | Variable | Meaning |
 | --- | --- |
+| `APP_STAGE` | Deployment stage. Must be exactly `staging` or `production`. |
 | `FAUCET_ENABLED` | Only the exact string `true` enables new claims. Missing, `false`, `TRUE`, or any other value disables claims. Reconciliation always continues. |
 | `ALLOWED_CLAIM_ADDRESS` | Optional single-recipient allowlist. When set, only this EVM address may claim. Enabled staging deployments require it so a public staging URL cannot pay arbitrary recipients. |
 | `DYNAMODB_TABLE_NAME` | Single-table DynamoDB name. Partition key is String `pk`; TTL attribute is `expiresAt`. |
@@ -56,7 +57,6 @@ All entries below are required unless a default is shown. Fee values are decimal
 | `PREPARING_LEASE_SECONDS` | Unsigned reservation lease; defaults to `300`. |
 | `TOKEN_REPLAY_SECONDS` | Local Turnstile token replay marker; defaults to `86400`. |
 | `CLAIM_RETENTION_SECONDS` | Terminal claim TTL; defaults to `7776000` (90 days). |
-| `DAILY_CLAIM_CAP` | Maximum active/confirmed distributions per UTC day. Required positive integer. |
 | `MAX_GAS_LIMIT` | Hard maximum signed gas limit. |
 | `MAX_FEE_PER_GAS_WEI` | Hard maximum legacy gas price or EIP-1559 max fee per gas. |
 | `MAX_PRIORITY_FEE_PER_GAS_WEI` | Hard EIP-1559 priority-fee maximum. |
@@ -90,9 +90,11 @@ The table uses a String partition key named `pk` and no sort key:
 - `COOLDOWN#ADDRESS#<lowercase address>`: owner and logical `blockedUntil`.
 - `COOLDOWN#IP#<HMAC>`: owner and logical `blockedUntil`; no raw IP is stored.
 - `REPLAY#TURNSTILE#<SHA-256>`: logical replay expiry; no Turnstile token is stored.
-- `CAP#DAY#YYYY-MM-DD`: UTC daily counter. Daily records intentionally have no TTL (one item per day), so a very late explicit revert can atomically refund exactly once.
+- `CAP#DAY#YYYY-MM-DD`: uncapped UTC volume counter retained for audit and safe rolling-deploy/rollback compatibility. It is not consulted when authorizing a claim.
 
-Reservation is one six-action `TransactWriteItems`: active lock, address cooldown, IP cooldown, replay marker, daily cap increment, and claim. It never steals an expired preparing lock; the lease is first released by an owner-checked transaction. Preparing failures, expired unsigned leases, and explicit on-chain reverts atomically mark the claim failed, release its exact lock/guards, and decrement the same UTC counter. Unknown states remain locked.
+Reservation is one six-action `TransactWriteItems`: active lock, address cooldown, IP cooldown, replay marker, an unconditional daily audit-count increment, and claim. The audit counter has no cap condition. The reservation never steals an expired preparing lock; the lease is first released by an owner-checked transaction. Preparing failures, expired unsigned leases, and explicit on-chain reverts atomically mark the claim failed, release its exact lock and cooldown guards, and decrement the audit count. Unknown states remain locked.
+
+There is intentionally no whole-site daily claim quota. The address and source-network cooldowns, Turnstile replay protection, WAF rate limit, and one-active-transaction lock still apply, but they are not an aggregate payout ceiling. Fund the sender conservatively and monitor its DAI balance and the uncapped audit count.
 
 DynamoDB TTL is only cleanup. All authorization and cooldown conditions compare logical timestamps, because TTL deletion is asynchronous.
 
@@ -121,4 +123,4 @@ key. EventBridge needs permission to invoke only `reconcile.handler`. The
 reconcile code deliberately ignores `FAUCET_ENABLED`, so disabling new claims
 cannot strand an already signed transaction.
 
-Operational alarms should cover Lambda errors, a signed lock older than the expected confirmation window, daily-cap exhaustion, and low DAI balance. Never delete the active lock manually before proving the persisted transaction's chain state.
+Operational alarms should cover Lambda errors, a signed lock older than the expected confirmation window, unexpected claim volume, and low DAI balance. Never delete the active lock manually before proving the persisted transaction's chain state.

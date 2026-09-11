@@ -194,6 +194,7 @@ npx cdk deploy --all --require-approval broadening \
   -c stage=staging \
   -c certificateArnStaging=CERTIFICATE_ARN \
   -c faucetEnabled=true \
+  -c allowedClaimAddress=0xAPPROVED_TEST_RECIPIENT \
   --profile anubis-faucet
 ```
 
@@ -204,13 +205,40 @@ npx cdk deploy --all --require-approval broadening \
 - Name：`staging`
 - Target：staging stack 的 `CloudFrontDomainName`
 
-完成 staging 驗收後，先把 staging 重新部署為 `faucetEnabled=false`，確認 `/api/distribute` 回傳 `FAUCET_DISABLED`，並確認 staging 沒有 `preparing` 或 `signed` claim。Staging 與 production 的 cooldown、daily cap 和 active lock 不共用；若兩者同時公開啟用，同一人可在兩個 hostname 各領一次。Production 啟用 gate 必須同時確認 staging 已關閉，且兩個 `/api/health` 顯示的 sender address 不同。
+完成 staging 驗收後，先把 staging 重新部署為 `faucetEnabled=false`，確認 `/api/distribute` 回傳 `FAUCET_DISABLED`，並確認 staging 沒有 `preparing` 或 `signed` claim。Staging 與 production 的 cooldown 和 active lock 不共用；若兩者同時公開啟用，同一人可在兩個 hostname 各領一次。Production 啟用 gate 必須同時確認 staging 已關閉，且兩個 `/api/health` 顯示的 sender address 不同。
 
-然後以 `stage=production`、`certificateArnProduction` 重複 diff/deploy、Secret 輸入、資金與真實 claim 驗證。最後新增 apex CNAME：
+先以 `stage=production`、`certificateArnProduction` 建立關閉狀態的 production stack，並設定 `AlertEmail`。在新的 production Secret 介面輸入另一個專用錢包私鑰及 Turnstile Secret，保留自動生成的 `ipPepper`；production 錢包必須與 staging 不同，而且只存入可承受全部損失的 DAI 餘額。確認新的 SNS 訂閱電郵後，再完成 health、gas simulation 與資金檢查。
+
+接著新增 apex CNAME，Proxy status 選 DNS only，並等待 DNS 及 TLS 正常；Turnstile 和後端都只接受正式 hostname，因此不能用 CloudFront 預設 hostname 代替這一步：
 
 - Name：`@`
 - Target：production stack 的 `CloudFrontDomainName`
 - Proxy status：DNS only
+
+第一次真實驗收只允許一個已獲批准的收款地址：
+
+```sh
+npx cdk deploy --all --require-approval broadening \
+  -c account=ACCOUNT_ID \
+  -c stage=production \
+  -c certificateArnProduction=CERTIFICATE_ARN \
+  -c faucetEnabled=true \
+  -c allowedClaimAddress=0xAPPROVED_TEST_RECIPIENT \
+  --parameters AnubisFaucet-Production:AlertEmail=alerts@example.com \
+  --profile anubis-faucet
+```
+
+只有在 1 DAI receipt、cooldown、警報、staging 關閉狀態及兩個 sender 不同全部核對後，才可公開啟用。公開部署必須省略 `allowedClaimAddress`，否則 production 仍只會接受測試地址：
+
+```sh
+npx cdk deploy --all --require-approval broadening \
+  -c account=ACCOUNT_ID \
+  -c stage=production \
+  -c certificateArnProduction=CERTIFICATE_ARN \
+  -c faucetEnabled=true \
+  --parameters AnubisFaucet-Production:AlertEmail=alerts@example.com \
+  --profile anubis-faucet
+```
 
 Cloudflare 會對 apex CNAME flatten。不要先開橙雲；否則可信 IP、WAF 及 24 小時限制模型都要重新設計。
 
@@ -247,6 +275,6 @@ CDK、建置及測試命令已版本化。日後 GitHub Actions 只需以 OIDC �
 - Turnstile Free plan 為 USD 0；ACM public certificate 亦不另收憑證月費。
 - 若 staging 與同等 production 長期同時保留，兩套合計約
   **USD 17–20/月**。
-- faucet 的資產流出另計：目前每日上限 100 次、每次 1 DAI，31 日的理論最高派發量為 **3,100 DAI 加 gas**。這是風險上限，不代表預期用量；可日後把 `DAILY_CLAIM_CAP` 調低。
+- faucet 的資產流出另計：每次派發 1 DAI，但不設全站每日上限。每地址及來源網絡的 24 小時 cooldown、Turnstile、WAF 和單筆 active lock 仍然生效，但大量不同地址及網絡仍可持續領取，直至 sender 餘額不足或管理員關閉 faucet。應只存入可承受風險的餘額，並監察領取量及 DAI 餘額。
 
 正式帳單仍以 AWS Pricing Calculator、Billing 與 Cost Explorer 為準。參考：[CloudFront flat-rate plans](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/flat-rate-pricing-plan.html)、[CloudFront PAYG pricing](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[AWS WAF pricing](https://aws.amazon.com/waf/pricing/)、[CloudWatch pricing](https://aws.amazon.com/cloudwatch/pricing/)、[Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/)、[Lambda pricing](https://aws.amazon.com/lambda/pricing/)、[Turnstile plans](https://developers.cloudflare.com/turnstile/plans/)。

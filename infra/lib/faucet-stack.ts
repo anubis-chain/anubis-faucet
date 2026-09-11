@@ -143,7 +143,6 @@ export class FaucetStack extends Stack {
       PREPARING_LEASE_SECONDS: '300',
       TOKEN_REPLAY_SECONDS: '86400',
       CLAIM_RETENTION_SECONDS: '7776000',
-      DAILY_CLAIM_CAP: '100',
       TURNSTILE_HOSTNAMES: config.domainName,
       ALLOWED_ORIGINS: `https://${config.domainName}`,
       MAX_GAS_LIMIT: '150000',

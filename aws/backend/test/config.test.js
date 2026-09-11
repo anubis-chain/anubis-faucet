@@ -10,7 +10,13 @@ test('loads the complete fail-closed production contract', () => {
   assert.equal(config.chainId, 202601);
   assert.equal(config.tokenAmount, 10n ** 18n);
   assert.equal(config.tokenCodeHash, baseEnv.TOKEN_CODE_HASH);
+  assert.equal('dailyClaimCap' in config, false);
   assert.deepEqual(config.allowedOrigins, ['https://faucet.example.test']);
+});
+
+test('ignores the removed legacy daily-cap environment setting', () => {
+  const config = loadConfig({ ...baseEnv, DAILY_CLAIM_CAP: '1' });
+  assert.equal('dailyClaimCap' in config, false);
 });
 
 test('normalizes an optional single-recipient staging restriction', () => {
@@ -46,7 +52,6 @@ test('rejects missing safety caps, non-HTTPS RPC and invalid token identity', ()
     ['RPC_URL', 'http://rpc.example.test'],
     ['TOKEN_CODE_HASH', '0x1234'],
     ['TOKEN_DECIMALS', '6'],
-    ['DAILY_CLAIM_CAP', '0'],
     ['TRUST_CLOUDFRONT_VIEWER_ADDRESS', 'false'],
   ]) assert.throws(() => loadConfig({ ...baseEnv, [key]: value }), /configuration|RPC_URL|pre-Aria|CloudFront/i);
 });

@@ -17,7 +17,6 @@ export const baseEnv = Object.freeze({
   PREPARING_LEASE_SECONDS: '300',
   TOKEN_REPLAY_SECONDS: '86400',
   CLAIM_RETENTION_SECONDS: '7776000',
-  DAILY_CLAIM_CAP: '100',
   MAX_GAS_LIMIT: '150000',
   MAX_FEE_PER_GAS_WEI: '100000000000',
   MAX_PRIORITY_FEE_PER_GAS_WEI: '10000000000',
@@ -34,7 +33,6 @@ export const planConfig = Object.freeze({
   preparingLeaseSeconds: 300,
   tokenReplaySeconds: 86400,
   claimRetentionSeconds: 7776000,
-  dailyClaimCap: 100,
 });
 
 export function memoryLogger() {

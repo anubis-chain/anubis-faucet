@@ -6,8 +6,6 @@ import {
   buildReservePlan,
   buildSaveSignedPlan,
   itemKey,
-  secondsUntilNextUtcDay,
-  utcDay,
 } from './store-plan.js';
 
 function canceled(error) {
@@ -68,11 +66,10 @@ export class DynamoClaimStore {
   }
 
   async throwReservationConflict({ address, ipHash, tokenHash, now }) {
-    const [addressGuard, ipGuard, replay, daily, active] = await Promise.all([
+    const [addressGuard, ipGuard, replay, active] = await Promise.all([
       this.get(itemKey.address(address)),
       this.get(itemKey.ip(ipHash)),
       this.get(itemKey.token(tokenHash)),
-      this.get(itemKey.daily(utcDay(now))),
       this.get(itemKey.active()),
     ]);
     const blockedUntil = Math.max(addressGuard?.blockedUntil || 0, ipGuard?.blockedUntil || 0);
@@ -80,9 +77,6 @@ export class DynamoClaimStore {
       throw new HttpError(429, 'COOLDOWN_ACTIVE', 'This address or network has already claimed within the cooldown period.', Math.ceil(blockedUntil - now));
     }
     if (replay?.expiresAt > now) throw new HttpError(400, 'VERIFICATION_REPLAYED', 'Verification has already been used. Please verify again.');
-    if ((daily?.claimCount || 0) >= this.config.dailyClaimCap) {
-      throw new HttpError(429, 'DAILY_CAP_REACHED', 'The faucet daily distribution limit has been reached.', secondsUntilNextUtcDay(now));
-    }
     if (active) throw new HttpError(503, 'FAUCET_BUSY', 'A faucet transaction is still being processed. Please try again shortly.', 60);
   }
 

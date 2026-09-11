@@ -5,8 +5,6 @@ import {
   buildFailPlan,
   buildReservePlan,
   buildSaveSignedPlan,
-  itemKey,
-  secondsUntilNextUtcDay,
   utcDay,
 } from '../store-plan.js';
 import { planConfig } from './helpers.js';
@@ -21,7 +19,7 @@ const values = {
   config: planConfig,
 };
 
-test('reserve is one six-item transaction with distinct lock, cooldown, replay, cap and claim keys', () => {
+test('reserve tracks daily volume without imposing a global cap', () => {
   const { claim, input } = buildReservePlan(values);
   assert.equal(input.ClientRequestToken, values.claimId);
   assert.equal(input.TransactItems.length, 6);
@@ -36,8 +34,10 @@ test('reserve is one six-item transaction with distinct lock, cooldown, replay, 
     `CLAIM#${values.claimId}`,
   ]);
   assert.equal(input.TransactItems[0].Put.ConditionExpression, 'attribute_not_exists(pk)');
-  assert.match(input.TransactItems[4].Update.ConditionExpression, /claimCount < :cap/);
-  assert.equal(input.TransactItems[4].Update.ExpressionAttributeValues[':cap'], 100);
+  assert.equal(input.TransactItems[4].Update.ConditionExpression, undefined);
+  assert.equal(input.TransactItems[4].Update.ExpressionAttributeValues[':cap'], undefined);
+  assert.ok(!JSON.stringify(input).includes('claimCount <'));
+  assert.equal(claim.day, utcDay(values.now));
   assert.equal(claim.ipHash, values.ipHash);
   assert.ok(!JSON.stringify(input).includes('192.0.2.1'));
 });
@@ -60,7 +60,7 @@ test('saveSigned atomically persists raw bytes before changing all four active r
   assert.equal(JSON.stringify(input).match(/0xdeadbeef/g)?.length, 1);
 });
 
-test('terminal transitions release exactly owned state and only failure refunds the UTC cap', () => {
+test('terminal transitions release exactly owned state and failed claims refund the audit count', () => {
   const claim = { ...buildReservePlan(values).claim, status: 'signed', txHash: `0x${'c'.repeat(64)}` };
   const failed = buildFailPlan({ tableName: 'table', claim, expectedStatus: 'signed', reason: 'TRANSACTION_REVERTED', now: values.now + 2, config: planConfig });
   const confirmed = buildConfirmPlan({ tableName: 'table', claim, now: values.now + 2, config: planConfig });
@@ -70,11 +70,4 @@ test('terminal transitions release exactly owned state and only failure refunds 
   assert.equal(confirmed.TransactItems.length, 4);
   assert.ok(!JSON.stringify(confirmed).includes('claimCount'));
   assert.match(confirmed.TransactItems[0].Update.UpdateExpression, /REMOVE rawTx/);
-});
-
-test('UTC cap rolls at midnight and key helpers are deterministic', () => {
-  const secondBefore = Date.UTC(2026, 8, 11, 23, 59, 59) / 1000;
-  assert.equal(utcDay(secondBefore), '2026-09-11');
-  assert.equal(secondsUntilNextUtcDay(secondBefore), 1);
-  assert.deepEqual(itemKey.daily('2026-09-12'), { pk: 'CAP#DAY#2026-09-12' });
 });

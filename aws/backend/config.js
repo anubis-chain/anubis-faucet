@@ -126,7 +126,6 @@ export function loadConfig(env = process.env) {
     preparingLeaseSeconds: safeInteger(env, 'PREPARING_LEASE_SECONDS', { min: 30, fallback: '300' }),
     tokenReplaySeconds: safeInteger(env, 'TOKEN_REPLAY_SECONDS', { min: 300, fallback: '86400' }),
     claimRetentionSeconds: safeInteger(env, 'CLAIM_RETENTION_SECONDS', { min: 86400, fallback: '7776000' }),
-    dailyClaimCap: safeInteger(env, 'DAILY_CLAIM_CAP', { min: 1 }),
     maxGasLimit,
     maxFeePerGas,
     maxPriorityFeePerGas,
