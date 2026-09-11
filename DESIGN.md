@@ -4,7 +4,7 @@
 Original black and lime green. A quiet utility for developers requesting Anubis Test DAI, with the Anubis eye sigil video as its visual anchor.
 
 ## 2. Palette
-Canvas `#000000`, surface `#000000`, inset panel `#0f0f0f`, input `#333333`, border `#9e9e9e`, subtle border `#191919`, text `#f0f0f0`, muted text `#9e9e9e`, accent `#ccff00`, accent hover `#b8e600`, accent ink `#000000`, success `#00c758`. Tokens live in `src/global.css`; RainbowKit mirrors the accent pair in `src/lib/wallet.ts`.
+Canvas `#000000`, surface `#000000`, inset panel `#0f0f0f`, input `#333333`, border `#9e9e9e`, subtle border `#191919`, text `#f0f0f0`, muted text `#9e9e9e`, accent `#ccff00`, accent hover `#b8e600`, accent ink `#000000`, success `#00c758`. Tokens live in `src/global.css`; the lightweight installed-wallet selector uses the same CSS token set.
 
 ## 3. Typography
 Keep the locally hosted Roboto for familiar form labels and compact body copy, and Geist Mono for addresses and network data. Display: 60px, weight 450, tracking -0.035em. Body: 14–16px. Microcopy: 12px. Neutral light text sits on black.

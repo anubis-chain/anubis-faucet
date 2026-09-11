@@ -45,16 +45,18 @@ test('rejects an invalid recipient, accepts an address, and never fabricates a c
   await expect(page.getByRole('button', { name: 'Send tokens', exact: true })).toBeFocused();
 });
 
-test('restores the claim dialog from a deep link and supports browser history', async ({ page }) => {
-  await page.goto(`/?address=${address}&step=auth`);
+test('keeps recipient addresses out of URLs and supports browser history', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Send to', { exact: true }).fill(address);
+  await page.getByRole('button', { name: 'Send tokens', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByLabel('Send to', { exact: true })).toHaveValue(address);
+  await expect(page).toHaveURL('http://127.0.0.1:4173/');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  await expect(page).not.toHaveURL(/step=auth/);
   await page.getByRole('link', { name: 'Add testnet', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Chain details' })).toBeVisible();
   await page.goBack();
-  await expect(page.getByLabel('Send to', { exact: true })).toHaveValue(address);
+  await expect(page).toHaveURL('http://127.0.0.1:4173/');
+  await expect(page.getByLabel('Send to', { exact: true })).toHaveValue('');
 });
 
 test('FAQ sections expand independently and work with a keyboard', async ({ page }) => {
@@ -108,7 +110,7 @@ test('configured network has no old branding or unrelated tokens', async ({ page
   expect(requests.join(' ')).not.toMatch(/robinhood|offchain/i);
 });
 
-test('privacy dialog is accessible and accurately describes local storage', async ({ page }) => {
+test('privacy dialog is accessible and accurately describes wallet permissions', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Your Privacy Choices', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Your Privacy Choices' });

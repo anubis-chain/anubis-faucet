@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useTestnetWallet } from './WalletProvider';
+import { useTestnetWallet, WalletSelectionCancelledError } from './WalletProvider';
 import { isRecipient } from '../lib/api';
 import { distribution, anubisTestnet, tokens } from '../lib/chain';
 import { ClaimDialog } from './ClaimDialog';
@@ -8,59 +8,54 @@ import { Icon } from './Icon';
 import s from '../App.module.css';
 
 export function Faucet({ navigate, notify }: { navigate: (path: string) => void; notify: (message: string) => void }) {
-  const { address: walletAddress, chainId, wallet, switchChainAsync, openConnectModal } = useTestnetWallet();
-  const query = new URLSearchParams(window.location.search);
-  const [address, setAddress] = useState(query.get('address') || '');
+  const { address: walletAddress, chainId, connect, isConnected, switchChainAsync, watchAsset } = useTestnetWallet();
+  const [address, setAddress] = useState('');
   const [error, setError] = useState(false);
-  const [open, setOpen] = useState(query.get('step') === 'auth' && isRecipient(address));
+  const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const autoFilledAddress = useRef<string | undefined>(undefined);
   const valid = isRecipient(address.trim());
 
-  useEffect(() => { if (walletAddress) setAddress(current => current || walletAddress); }, [walletAddress]);
   useEffect(() => {
-    const update = () => {
-      const query = new URLSearchParams(window.location.search);
-      const recipient = query.get('address') || '';
-      setAddress(recipient);
-      setOpen(query.get('step') === 'auth' && isRecipient(recipient));
-    };
-    window.addEventListener('popstate', update);
-    return () => window.removeEventListener('popstate', update);
-  }, []);
+    if (!walletAddress) return;
+    const previous = autoFilledAddress.current;
+    autoFilledAddress.current = walletAddress;
+    setAddress(current => {
+      if (current === '' || (previous && current.trim().toLowerCase() === previous.toLowerCase())) {
+        return walletAddress;
+      }
+      return current;
+    });
+  }, [walletAddress]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!valid) { setError(true); input.current?.focus(); return; }
     setError(false);
     setAddress(address.trim());
-    const url = new URL(window.location.href);
-    url.searchParams.set('address', address.trim());
-    url.searchParams.set('step', 'auth');
-    window.history.pushState({}, '', url);
     setOpen(true);
   }
 
   function close() {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('step');
-    window.history.replaceState({}, '', url);
     setOpen(false);
   }
 
   async function importTokens(selected: typeof tokens) {
-    if (!anubisTestnet || !switchChainAsync || !selected.length) return;
-    if (!wallet) { openConnectModal?.(); return; }
+    if (!anubisTestnet || !selected.length) return;
     if (importing) return;
     setImporting(true);
     try {
+      if (!isConnected) await connect();
       if (chainId !== anubisTestnet.id) await switchChainAsync({ chainId: anubisTestnet.id });
       for (const token of selected) {
-        const accepted = await wallet.watchAsset({ type: 'ERC20', options: token });
+        const accepted = await watchAsset(token);
         if (!accepted) { notify('Token import was cancelled in your wallet.'); return; }
       }
       notify(selected.length > 1 ? 'Testnet tokens imported to your wallet.' : `${selected[0].symbol} imported to your wallet.`);
-    } catch { notify('Token import was not completed. Check your wallet and try again.'); }
+    } catch (error) {
+      if (!(error instanceof WalletSelectionCancelledError)) notify('Token import was not completed. Check your wallet and try again.');
+    }
     finally { setImporting(false); }
   }
 

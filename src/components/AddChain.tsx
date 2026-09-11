@@ -1,4 +1,4 @@
-import { useTestnetWallet } from './WalletProvider';
+import { useTestnetWallet, WalletSelectionCancelledError } from './WalletProvider';
 import { anubisTestnet } from '../lib/chain';
 import { brand } from '../lib/brand';
 import { Icon } from './Icon';
@@ -13,12 +13,17 @@ const fields = [
 ] as const;
 
 export function AddChain({ navigate, notify }: { navigate: (path: string) => void; notify: (message: string) => void }) {
-  const { isConnected, openConnectModal, switchChainAsync, isPending } = useTestnetWallet();
+  const { connect, isConnected, switchChainAsync, isPending } = useTestnetWallet();
   async function addChain() {
-    if (!anubisTestnet || !switchChainAsync) return;
-    if (!isConnected) { openConnectModal?.(); return; }
-    try { await switchChainAsync({ chainId: anubisTestnet.id }); notify(`${brand.name} is ready in your wallet.`); }
-    catch { notify('The network was not added. Please check your wallet and try again.'); }
+    if (!anubisTestnet) return;
+    try {
+      if (!isConnected) await connect();
+      await switchChainAsync({ chainId: anubisTestnet.id });
+      notify(`${brand.name} is ready in your wallet.`);
+    }
+    catch (error) {
+      if (!(error instanceof WalletSelectionCancelledError)) notify('The network was not added. Please check your wallet and try again.');
+    }
   }
   return <>
     <div className={`${s.heroHeading} ${s.chainHeading}`}><h2>Add Testnet to wallet</h2></div>

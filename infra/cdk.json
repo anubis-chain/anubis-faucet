@@ -1,0 +1,18 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+  "context": {
+    "stage": "staging",
+    "primaryRegion": "ap-southeast-1",
+    "siteAssetPath": "../dist",
+    "backendAssetPath": "../aws/backend/dist",
+    "apiHandler": "api.handler",
+    "reconcileHandler": "reconcile.handler",
+    "faucetEnabled": false,
+    "certificateArnStaging": "",
+    "certificateArnProduction": "",
+    "rateLimitPerFiveMinutes": 100,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/core:defaultCrossStackReferences": "strong",
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true
+  }
+}

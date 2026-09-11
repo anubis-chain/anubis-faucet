@@ -1,5 +1,7 @@
 # Anubis Testnet Faucet ERC-20 DAI 开发交接
 
+> 本文件保留原 Cloudflare Worker 交接背景；目前 AWS Singapore 人工部署请以 [`AWS-MANUAL-DEPLOY.zh-TW.md`](AWS-MANUAL-DEPLOY.zh-TW.md) 为准。
+
 这是可修改、可重新构建的完整源码交接包。先阅读 [部署文档](DEPLOY.zh-CN.md)，再填写配置并发布。无需访问原开发者电脑，也无需 MCP。
 
 ## 已实现
@@ -9,11 +11,11 @@
 - Anubis Test，Chain ID `202601`，ERC-20 `DAI`，每次 `1 DAI`；合约 `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`，18 位精度。
 - 地址和 IP 各自限制 24 小时一次；服务端验证 Cloudflare Turnstile。
 - Workers Secrets 托管发币私钥；D1 原子占用额度、持久化签名交易，每分钟 Cron 恢复和核对交易。
-- 23 项 Worker 测试和 15 项浏览器测试，包括重复地球的画面对比回归测试。
+- 23 项 Worker 测试和 17 项浏览器测试，包括重复地球、钱包连接与 API 安全回归测试。
 
 ## 接手者需要准备
 
-Cloudflare 账户、部署域名、新建 D1、Turnstile Site Key 和 Secret Key、专用发币钱包私钥，以及该钱包在 Anubis Test 上的ERC-20 DAI 余额，以及另行支付 gas 的原生币余额。使用项目锁文件运行 `npm ci`。
+Cloudflare 账户、部署域名、新建 D1、Turnstile Site Key 和 Secret Key、专用发币钱包私钥，以及该钱包在 Anubis Test 上足以支付派发与 gas 的 ERC-20 DAI system-contract 余额。Anubis pre-Aria 不需要另行充值一般 EVM native balance。使用项目锁文件运行 `npm ci`。
 
 包内 `wrangler.jsonc` 和 `worker/config.json` 已换成独立部署模板。数据库的全零 ID、`faucet.example.com` 都是占位值，必须替换。不要把 `.env.example`、`.dev.vars.example` 的空值当作可用配置。
 
@@ -24,9 +26,12 @@ Cloudflare 账户、部署域名、新建 D1、Turnstile Site Key 和 Secret Key
 | `src/` | 页面、钱包集成、API 客户端、网络与领取配置 |
 | `public/assets/` | Logo、字体、视频和备用图片 |
 | `worker/` | JS API、发币签名、限流、验证码、交易恢复 |
+| `aws/backend/` | AWS Lambda API、原子限流、签名交易持久化与交易恢复 |
+| `infra/` | AWS CDK infrastructure；不包含 Jenkins 或 CI/CD |
 | `worker/migrations/` | D1 SQL 迁移 |
 | `tests/` | 服务端与浏览器自动化测试，测试私钥均为公开无资金夹具 |
 | `docs/DEPLOY.zh-CN.md` | 从零部署、接管、验收、排错与日常维护 |
+| `docs/AWS-MANUAL-DEPLOY.zh-TW.md` | AWS Singapore 人工部署、DNS、钱包与上线验收 |
 | `DESIGN.md` | 视觉规范及背景合成规则 |
 | `references/` | 原始复刻阶段的参考截图和资源来源，截图记录复刻阶段，领取代币以当前 ERC-20 配置为准 |
 | `MANIFEST.sha256` | 包内文件的 SHA-256 清单 |
@@ -35,9 +40,9 @@ Cloudflare 账户、部署域名、新建 D1、Turnstile Site Key 和 Secret Key
 
 ## 交接验收记录
 
-2026-09-09，将 ERC-20 交接 ZIP 解压到独立目录并使用包内配置进行验证：`npm ci` 安装成功，`npm test` 的 38 项测试全部通过，`npm run worker:check` 的生产构建和 Worker dry-run 通过，`npm run db:migrate:local` 建表成功。交接包未在接手者账户创建资源；现有站点已发布，未执行真实资金转账。发币钱包需分别充值合约 DAI 和原生币 gas 后验收到账。
+2026-09-09，将 ERC-20 交接 ZIP 解压到独立目录并使用包内配置进行验证：`npm ci` 安装成功，`npm test` 的 38 项测试全部通过，`npm run worker:check` 的生产构建和 Worker dry-run 通过，`npm run db:migrate:local` 建表成功。交接包未在接手者账户创建资源；现有站点已发布，未执行真实资金转账。其后已确认 Anubis pre-Aria 的派发与 gas 均从发币钱包的 DAI system-contract balance 扣除。
 
-安装时现有钱包依赖有 peer/deprecated 提示，构建有较大 JS chunk 提示；上述检查的退出码均为 0。本次保留经过验证的锁文件，未在交接时顺带升级依赖。
+2026-09-11，AWS 人工部署版本已改用原生 EIP-1193 browser wallet provider，并以 EIP-6963 提供只限已安装浏览器钱包的轻量选择器；`window.ethereum` 只作旧式钱包后备，选择只留在页面内存。RainbowKit、Wagmi、React Query 与 WalletConnect 依赖均已移除。重新通过 23 项 Worker 测试、20 项浏览器测试、production build；完整与 production-only `npm audit` 均为 0 vulnerabilities。AWS Lambda backend 另有 48 项测试全部通过。
 
 ZIP 同目录的 `.sha256` 文件用于核对整个压缩包；解压后在项目根目录运行 `shasum -a 256 -c MANIFEST.sha256` 可以验证包内文件。Linux 也可用 `sha256sum -c MANIFEST.sha256`。配置修改后相应文件的哈希变化属于预期。
 

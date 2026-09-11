@@ -76,7 +76,7 @@ export function App() {
     </footer>
     {toast && <div role="status" className={s.toast}><span>{toast}</span><button type="button" aria-label="Dismiss notification" onClick={() => setToast('')}><Icon name="close" /></button></div>}
     {privacy && <Modal title="Your Privacy Choices" onClose={() => setPrivacy(false)}><div className={s.steps}>
-      <p className={s.modalDescription}>This local replica does not use advertising or analytics cookies. Your wallet connection preferences are stored in this browser. The faucet service stores claim addresses, IP addresses and timestamps to enforce request limits. Cloudflare Turnstile and wallet providers have their own privacy policies.</p>
+      <p className={s.modalDescription}>This faucet does not use advertising or analytics cookies. Your wallet manages its own connection permissions; this site does not store wallet connection preferences. The faucet service stores claim addresses, a keyed representation of network addresses, and timestamps to enforce request limits. Cloudflare Turnstile and wallet providers have their own privacy policies.</p>
       <a className={s.transactionLink} href={docsUrl} target="_blank" rel="noreferrer">Anubis Testnet documentation<Icon name="external" /></a>
       <button type="button" className={s.primaryButton} onClick={() => setPrivacy(false)}>Close</button>
     </div></Modal>}

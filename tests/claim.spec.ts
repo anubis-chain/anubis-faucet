@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createHash } from 'node:crypto';
 
 test.use({ baseURL: 'http://127.0.0.1:4189' });
 
@@ -24,12 +25,16 @@ test('Turnstile-only claim resets used verification after failure and shows subm
   let attempts = 0;
   const tokens: string[] = [];
   await page.route('http://127.0.0.1:3001/api/distribute', async route => {
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST' } });
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type,x-amz-content-sha256', 'Access-Control-Allow-Methods': 'POST' } });
+    const body = route.request().postData() || '';
+    expect(route.request().headers()['x-amz-content-sha256']).toBe(createHash('sha256').update(body).digest('hex'));
     tokens.push(route.request().postDataJSON().turnstileToken);
     attempts++;
     await route.fulfill({ status: attempts === 1 ? 429 : 202, headers: { 'Access-Control-Allow-Origin': '*' }, json: attempts === 1 ? { error: 'This address or IP has already claimed within the cooldown period.' } : { status: 'submitted', txHashes: ['0x' + 'a'.repeat(64)] } });
   });
-  await page.goto('/?address=0x1111111111111111111111111111111111111111&step=auth');
+  await page.goto('/');
+  await page.getByLabel('Send to', { exact: true }).fill('0x1111111111111111111111111111111111111111');
+  await page.getByRole('button', { name: 'Send tokens', exact: true }).click();
   const dialog = page.getByRole('dialog');
   const claim = dialog.getByRole('button', { name: 'Claim tokens', exact: true });
   await expect(dialog.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(0);
