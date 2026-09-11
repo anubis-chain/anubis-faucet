@@ -53,11 +53,13 @@ test('uses configured Anubis metadata and handles wallet rejection', async ({ pa
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Connect wallet', exact: true }).click();
-  await page.getByRole('button', { name: 'MetaMask', exact: true }).click();
   await expect(page.getByLabel('Send to', { exact: true })).toHaveValue('0x1111111111111111111111111111111111111111');
+  await expect(page.getByRole('button', { name: 'Add testnet to your wallet', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Import TEST to your wallet', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('TEST imported');
   const requests = await page.evaluate(() => (window as unknown as { walletTest: { calls: { method: string; params: unknown }[] } }).walletTest.calls);
+  expect(requests.some(request => request.method === 'eth_requestAccounts')).toBe(true);
+  expect(requests.some(request => request.method === 'wallet_switchEthereumChain')).toBe(true);
   expect(requests.find(request => request.method === 'wallet_addEthereumChain')?.params).toMatchObject([{
     chainId: '0x7a69', chainName: 'Anubis Testnet',
     rpcUrls: ['http://127.0.0.1:8545'],
@@ -78,4 +80,43 @@ test('uses configured Anubis metadata and handles wallet rejection', async ({ pa
   await page.getByRole('button', { name: 'Import TEST to your wallet', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('not completed');
   expect(requests.some(request => ['eth_sendTransaction', 'personal_sign', 'eth_sign'].includes(request.method))).toBe(false);
+});
+
+test('fails visibly and safely when no injected provider exists', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => { delete window.ethereum; });
+  await page.goto('/');
+  const connect = page.getByRole('button', { name: 'Connect wallet', exact: true });
+  await expect(connect).toHaveAttribute('title', 'No injected browser wallet was detected.');
+  await connect.click();
+  await expect(connect).toHaveAttribute('title', 'The wallet request was not completed.');
+  await page.getByRole('button', { name: 'Import TEST to your wallet', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('not completed');
+  expect(errors).toEqual([]);
+});
+
+test('handles a rejected connection without exposing an unhandled error', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      ethereum: {
+        request: async ({ method }: { method: string }) => {
+          if (method === 'eth_accounts') return [];
+          if (method === 'eth_chainId') return '0x1';
+          if (method === 'eth_requestAccounts') {
+            throw Object.assign(new Error('User rejected the request'), { code: 4001 });
+          }
+          throw Object.assign(new Error(`Unsupported test method: ${method}`), { code: 4200 });
+        },
+      },
+    });
+  });
+  await page.goto('/');
+  const connect = page.getByRole('button', { name: 'Connect wallet', exact: true });
+  await connect.click();
+  await expect(connect).toHaveAttribute('title', 'The wallet request was not completed.');
+  await expect(page.getByLabel('Send to', { exact: true })).toHaveValue('');
+  expect(errors).toEqual([]);
 });

@@ -16,20 +16,23 @@ type FaucetConfig = {
 
 const config = faucetConfig as FaucetConfig;
 const { chain } = config;
-function isHttpUrl(value: string) {
-  try { return ['https:', 'http:'].includes(new URL(value).protocol); }
+function isNetworkUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || (url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname));
+  }
   catch { return false; }
 }
 
 // No fallback network: wallet actions require actual Anubis parameters.
 export const anubisTestnet = chain.id !== null && Number.isSafeInteger(chain.id) && chain.id > 0
-  && isHttpUrl(chain.rpcUrl) && chain.nativeCurrency.name && chain.nativeCurrency.symbol
+  && isNetworkUrl(chain.rpcUrl) && chain.nativeCurrency.name && chain.nativeCurrency.symbol
   ? defineChain({
     id: chain.id,
     name: chain.name || brand.name,
     nativeCurrency: chain.nativeCurrency,
     rpcUrls: { default: { http: [chain.rpcUrl] } },
-    ...(isHttpUrl(chain.blockExplorer) ? {
+    ...(isNetworkUrl(chain.blockExplorer) ? {
       blockExplorers: { default: { name: 'Anubis Testnet Explorer', url: chain.blockExplorer } },
     } : {}),
     testnet: true,

@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@rainbow-me/rainbowkit/styles.css';
 import { WalletProvider } from './components/WalletProvider';
 import { App } from './App';
 import './global.css';

@@ -13,11 +13,14 @@ const fields = [
 ] as const;
 
 export function AddChain({ navigate, notify }: { navigate: (path: string) => void; notify: (message: string) => void }) {
-  const { isConnected, openConnectModal, switchChainAsync, isPending } = useTestnetWallet();
+  const { connect, isConnected, switchChainAsync, isPending } = useTestnetWallet();
   async function addChain() {
-    if (!anubisTestnet || !switchChainAsync) return;
-    if (!isConnected) { openConnectModal?.(); return; }
-    try { await switchChainAsync({ chainId: anubisTestnet.id }); notify(`${brand.name} is ready in your wallet.`); }
+    if (!anubisTestnet) return;
+    try {
+      if (!isConnected) await connect();
+      await switchChainAsync({ chainId: anubisTestnet.id });
+      notify(`${brand.name} is ready in your wallet.`);
+    }
     catch { notify('The network was not added. Please check your wallet and try again.'); }
   }
   return <>

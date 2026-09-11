@@ -1,5 +1,7 @@
 # Anubis Testnet Faucet 部署与维护
 
+> 本文件只保留原 Cloudflare Worker 路径；目前 AWS Singapore 人工部署请以 [`AWS-MANUAL-DEPLOY.zh-TW.md`](AWS-MANUAL-DEPLOY.zh-TW.md) 为准。
+
 ## 1. 架构与已配置网络
 
 一个 Cloudflare Worker 同时托管前端与 `/api/*`。D1 保存领取记录；发币私钥只存在 Workers Secrets。Cron 每分钟检查未完成交易。部署目标是 **Cloudflare Workers + D1**。
@@ -87,11 +89,10 @@ cp .env.example .env.production
 
 ```dotenv
 VITE_FAUCET_API_URL=/
-VITE_TURNSTILE_SITE_KEY=填入你的实际SiteKey
-VITE_WALLETCONNECT_PROJECT_ID=
+VITE_TURNSTILE_SITE_KEY=0x4AAAAAAEv-TZyEqCPXlFdQ
 ```
 
-`Site Key` 是公开值。**Secret Key 和私钥绝不能放进 `VITE_` 变量**，这些变量会进入浏览器代码。WalletConnect Project ID 可留空，浏览器钱包扩展仍可连接；有自己的项目 ID 才填写以启用相应连接方式。
+`Site Key` 是公开值。当前 production build guard 只接受上述 `Anubis Faucet` widget 的公开 Site Key；若日后有意替换 widget，必须同步审阅 build guard、server-side Secret 与 hostname。**Secret Key 和私钥绝不能放进 `VITE_` 变量**，这些变量会进入浏览器代码。目前前端直接使用浏览器注入的 EIP-1193 wallet provider，不使用 WalletConnect Project ID。
 
 Vite 的环境变量在构建时写入产物，修改后需要重新构建。已有 `.env.local` 或 `.env.production.local` 时检查是否覆盖了目标值。前端 API 留空会禁用领取。
 
@@ -117,7 +118,7 @@ npx wrangler secret put TURNSTILE_SECRET_KEY
 
 第一个输入发币钱包私钥，第二个输入对应 Turnstile 站点的 Secret Key。不要把真实值写进命令参数、`wrangler.jsonc` 或 Git。Cloudflare 会创建并部署包含 Secret 更新的版本；后续普通部署保留现有 Secrets。[Workers Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
 
-最后向该私钥对应的**新发币地址**充值上述 ERC-20 DAI，供领取转出；另行充值 Anubis Test 原生币支付 gas。只有 ERC-20 DAI 余额而没有 gas，或只有原生币而没有合约 DAI，都无法发放。旧站钱包地址不是新部署钱包的默认收款地址。
+最后向该私钥对应的**新发币地址**充值上述 ERC-20 DAI，金额要足以支付领取数量与 Anubis pre-Aria gas。gas 同样从 DAI system-contract balance 扣除，不要另以一般 EVM native balance 作为是否可发放的判断。旧站钱包地址不是新部署钱包的默认收款地址。
 
 ## 8. 部署验收
 
@@ -155,7 +156,7 @@ npx wrangler tail
 npm test
 ```
 
-共 23 项 Worker 测试和 15 项浏览器测试。浏览器测试默认使用本机 Google Chrome；没有 Chrome 时执行 `npx playwright install chromium`，再删除 `playwright.config.ts` 的 `channel: 'chrome'` 一行；Linux 可能需要 Playwright 对应系统依赖。测试服务端使用本地 Miniflare D1、模拟 RPC、模拟 Turnstile 和公开的无资金私钥，不发真实资产。
+共 23 项 Worker 测试和 17 项浏览器测试。浏览器测试默认使用本机 Google Chrome；没有 Chrome 时执行 `npx playwright install chromium`，再删除 `playwright.config.ts` 的 `channel: 'chrome'` 一行；Linux 可能需要 Playwright 对应系统依赖。测试服务端使用本地 Miniflare D1、模拟 RPC、模拟 Turnstile 和公开的无资金私钥，不发真实资产。
 
 浏览器测试会监听 4173 和 4189 端口，运行前释放这两个端口。仅运行服务端可用 `npm run test:worker`。
 
@@ -192,7 +193,7 @@ npm run worker:dev
 | 验证码完成但 400 | Site Key/Secret 是否配套，hostname/action 是否一致，token 是否重用 |
 | 403 | 前端请求 origin 是否同源或已允许 |
 | 429 | 地址或 IP 冷却；共享出口用户共用一个 IP 额度 |
-| 无法准备转账 / 503 | RPC 链 ID、合约 decimals、ERC-20 DAI 余额、原生币 gas、transfer 模拟和 RPC 可用性 |
+| 无法准备转账 / 503 | RPC 链 ID、合约 decimals、足以支付派发与 pre-Aria gas 的 ERC-20 DAI system-contract 余额、transfer 模拟和 RPC 可用性 |
 | 一直 submitted / 后续请求繁忙 | `signed` 记录、Cron、RPC、回执及合约 Transfer 事件是否与领取记录一致 |
 | 改了 Site Key 仍旧值 | 检查 `.env.*` 覆盖，重新构建再部署 |
 
@@ -200,7 +201,7 @@ npm run worker:dev
 
 ## 11. 接管现有站点
 
-本交接包是 ERC-20 绿色新版，已发布到参考站点，Worker 版本 `b9b7592b-3983-483a-9182-f521fca9d616`。此次切换前已确认没有 preparing/signed 记录，保留既有 D1 历史。部署验收时健康检查正常，缺验证码请求被拒绝，但发币钱包代币与 gas 余额为 0，尚未做真实到账验证。若接手的是更早的原生币部署，由此前原生币版本升级前，先停止旧站接收新领取并让旧版本处理完交易，使用只读查询确认活动记录为 0：
+本交接包是 ERC-20 绿色新版，已发布到参考站点，Worker 版本 `b9b7592b-3983-483a-9182-f521fca9d616`。此次切换前已确认没有 preparing/signed 记录，保留既有 D1 历史。部署验收时健康检查正常，缺验证码请求被拒绝，但发币钱包可用于派发与 pre-Aria gas 的 DAI 余额为 0，尚未做真实到账验证。若接手的是更早的原生币部署，由此前原生币版本升级前，先停止旧站接收新领取并让旧版本处理完交易，使用只读查询确认活动记录为 0：
 
 ```sh
 npx wrangler d1 execute DB --remote --command "SELECT id,status,tx_hash FROM claims WHERE status IN ('preparing','signed')"
@@ -212,7 +213,7 @@ npx wrangler d1 execute DB --remote --command "SELECT id,status,tx_hash FROM cla
 
 从控制台核对并填入现有 account ID、Worker 名、D1 ID、实际域名和 Turnstile Site Key。复用现有 D1 和迁移历史，**不要按新站流程新建数据库替换它**。已有 Secrets 应保留，不要输入模板空值覆盖。
 
-现有发币地址是 `0xBD512E1ed202C84326479A77b710608Ad96f0C1D`，私钥未随包提供。本次核验 ERC-20 DAI 余额和原生币余额均为 0，部署验收前应分别充值并重新查余额。如确需迁移私钥，由所有者通过单独安全渠道交付；接管同一个 Worker 不需要从 Secrets 导出私钥。
+现有发币地址是 `0xBD512E1ed202C84326479A77b710608Ad96f0C1D`，私钥未随包提供。本次核验可用于派发与 pre-Aria gas 的 ERC-20 DAI 余额为 0；独立部署应改用新专用钱包并重新查余额。如确需迁移旧私钥，由所有者通过单独安全渠道交付；接管同一个 Worker 不需要从 Secrets 导出私钥。
 
 若改为另一个账户独立部署，优先使用新钱包、新 D1 和新的 Turnstile 站点，按第 2–8 节操作。如果要求保留旧站限流历史或迁移旧资金，先停止旧站领取、处理完未完成交易，再单独安排 D1 和资金迁移；源码交接包没有包含这些数据。
 
@@ -220,6 +221,6 @@ npx wrangler d1 execute DB --remote --command "SELECT id,status,tx_hash FROM cla
 
 主要入口：`src/App.tsx`、`src/components/Faucet.tsx`、`src/components/ClaimDialog.tsx`、`worker/index.js`。服务端流程由 `service.js` 串联 `store.js`、`sender.js`、`turnstile.js`。
 
-主题变量在 `src/global.css`，样式在 `src/App.module.css`，钱包弹窗配色在 `src/lib/wallet.ts`。Logo 使用用户提供的 `public/assets/anubis-logo-white.png`，白色字标带绿色三角；原始 SVG 留作资源来源参考。按钮与钱包主题恢复为 #ccff00，背景采用用户更新的 Anubis 图案视频，MP4 优先、WebM 备用，减少动态效果时显示新版 JPG。
+主题变量在 `src/global.css`，样式在 `src/App.module.css`，钱包连接逻辑在 `src/components/WalletProvider.tsx`。Logo 使用用户提供的 `public/assets/anubis-logo-white.png`，白色字标带绿色三角；原始 SVG 留作资源来源参考。按钮主题为 #ccff00，背景采用用户更新的 Anubis 图案视频，MP4 优先、WebM 备用，减少动态效果时显示新版 JPG。
 
 背景视频和备用图片在同一容器中。当前不加调色滤镜，视频完整覆盖静态图片；以后如需调色，**滤镜、透明度和混合模式加在容器，不要分别加在视频和图片上**，否则会再次显示两个地球。相关回归测试在 `tests/faucet.spec.ts`。
