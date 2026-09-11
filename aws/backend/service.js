@@ -7,6 +7,11 @@ function tokenDigest(token) {
   return createHash('sha256').update(`faucet-turnstile-v1\0${token}`).digest('hex');
 }
 
+function safeErrorCode(error) {
+  const value = error?.name || error?.code;
+  return typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/.test(value) ? value : 'UNKNOWN';
+}
+
 export function createFaucetService({
   config,
   store,
@@ -17,6 +22,17 @@ export function createFaucetService({
   now = () => Math.floor(Date.now() / 1000),
   uuid = randomUUID,
 }) {
+  async function dependency(operation, task) {
+    try {
+      return await task();
+    } catch (error) {
+      if (!(error instanceof HttpError)) {
+        logger.error('claim_dependency_failed', { operation, code: safeErrorCode(error) });
+      }
+      throw error;
+    }
+  }
+
   return {
     async health() {
       const [, secret] = await Promise.all([store.health(), secrets.get()]);
@@ -30,20 +46,23 @@ export function createFaucetService({
       }
       const address = normalizeRecipient(body?.recipientAddress);
       if (!address) throw new HttpError(400, 'INVALID_RECIPIENT', 'Please enter a valid non-zero EVM address.');
+      if (config.allowedClaimAddress && address !== config.allowedClaimAddress) {
+        throw new HttpError(403, 'RECIPIENT_NOT_ALLOWED', 'This staging run is restricted to its approved recipient.');
+      }
 
-      await store.expirePreparing(now());
-      const normalizedIp = normalizeSourceIp(sourceIp);
-      const secret = await secrets.get();
-      await verifier.verify(body?.turnstileToken, normalizedIp.verificationIp, secret.turnstileSecret);
+      await dependency('expire_preparing', () => store.expirePreparing(now()));
+      const normalizedIp = await dependency('normalize_source_ip', () => normalizeSourceIp(sourceIp));
+      const secret = await dependency('load_secret', () => secrets.get());
+      await dependency('verify_turnstile', () => verifier.verify(body?.turnstileToken, normalizedIp.verificationIp, secret.turnstileSecret));
 
       const time = now();
-      const claim = await store.reserve({
-        claimId: uuid(),
-        address,
+      const identities = await dependency('derive_rate_limits', () => ({
         ipHash: hashIpIdentity(normalizedIp.rateLimitIdentity, secret.ipPepper),
         tokenHash: tokenDigest(body.turnstileToken),
-        now: time,
-      });
+      }));
+      const claim = await dependency('reserve_claim', () => store.reserve({
+        claimId: uuid(), address, ...identities, now: time,
+      }));
 
       let signed;
       try {

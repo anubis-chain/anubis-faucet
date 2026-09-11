@@ -6,10 +6,30 @@ import { baseEnv } from './helpers.js';
 test('loads the complete fail-closed production contract', () => {
   const config = loadConfig(baseEnv);
   assert.equal(config.faucetEnabled, true);
+  assert.equal(config.allowedClaimAddress, null);
   assert.equal(config.chainId, 202601);
   assert.equal(config.tokenAmount, 10n ** 18n);
   assert.equal(config.tokenCodeHash, baseEnv.TOKEN_CODE_HASH);
   assert.deepEqual(config.allowedOrigins, ['https://faucet.example.test']);
+});
+
+test('normalizes an optional single-recipient staging restriction', () => {
+  const config = loadConfig({ ...baseEnv, ALLOWED_CLAIM_ADDRESS: '0x111111111111111111111111111111111111111A' });
+  assert.equal(config.allowedClaimAddress, '0x111111111111111111111111111111111111111a');
+  assert.throws(() => loadConfig({ ...baseEnv, ALLOWED_CLAIM_ADDRESS: '0x1234' }), /ALLOWED_CLAIM_ADDRESS/);
+});
+
+test('enabled staging fails closed without one approved recipient', () => {
+  assert.throws(
+    () => loadConfig({ ...baseEnv, APP_STAGE: 'staging', ALLOWED_CLAIM_ADDRESS: '' }),
+    /Enabled staging requires ALLOWED_CLAIM_ADDRESS/,
+  );
+  const config = loadConfig({
+    ...baseEnv,
+    APP_STAGE: 'staging',
+    ALLOWED_CLAIM_ADDRESS: '0x1111111111111111111111111111111111111111',
+  });
+  assert.equal(config.allowedClaimAddress, '0x1111111111111111111111111111111111111111');
 });
 
 test('only the exact lowercase true string enables claims', () => {

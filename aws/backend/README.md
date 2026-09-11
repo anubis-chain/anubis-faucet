@@ -40,6 +40,7 @@ All entries below are required unless a default is shown. Fee values are decimal
 | Variable | Meaning |
 | --- | --- |
 | `FAUCET_ENABLED` | Only the exact string `true` enables new claims. Missing, `false`, `TRUE`, or any other value disables claims. Reconciliation always continues. |
+| `ALLOWED_CLAIM_ADDRESS` | Optional single-recipient allowlist. When set, only this EVM address may claim. Enabled staging deployments require it so a public staging URL cannot pay arbitrary recipients. |
 | `DYNAMODB_TABLE_NAME` | Single-table DynamoDB name. Partition key is String `pk`; TTL attribute is `expiresAt`. |
 | `FAUCET_SECRET_ID` | Secrets Manager name or ARN for the JSON document below. |
 | `CHAIN_ID` | Expected integer chain ID (`202601`). |
@@ -109,6 +110,15 @@ CloudFront must forward the generated viewer-address header. For POST, the brows
 
 ## IAM and scheduling
 
-Both Lambda roles require only `dynamodb:GetItem` and `dynamodb:TransactWriteItems` on the one table plus normal scoped CloudWatch Logs permissions. Only the API role needs `secretsmanager:GetSecretValue` on the one secret; reconciliation uses the signer persisted with the signed claim and does not read the current private key. EventBridge needs permission to invoke only `reconcile.handler`. The reconcile code deliberately ignores `FAUCET_ENABLED`, so disabling new claims cannot strand an already signed transaction.
+Both Lambda roles require `dynamodb:GetItem` on the one table. Their
+transactional writes are authorized through the underlying
+`dynamodb:PutItem`, `dynamodb:UpdateItem`, and `dynamodb:DeleteItem` actions,
+restricted by the `dynamodb:EnclosingOperation=TransactWriteItems` condition;
+`TransactWriteItems` is not a standalone IAM action. Only the API role needs
+`secretsmanager:GetSecretValue` on the one secret; reconciliation uses the
+signer persisted with the signed claim and does not read the current private
+key. EventBridge needs permission to invoke only `reconcile.handler`. The
+reconcile code deliberately ignores `FAUCET_ENABLED`, so disabling new claims
+cannot strand an already signed transaction.
 
 Operational alarms should cover Lambda errors, a signed lock older than the expected confirmation window, daily-cap exhaustion, and low DAI balance. Never delete the active lock manually before proving the persisted transaction's chain state.

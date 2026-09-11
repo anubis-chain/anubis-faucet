@@ -133,9 +133,29 @@ without a separate human billing approval.
 
 Both stages default to `FAUCET_ENABLED=false`. Populate the secret, validate
 health, balances, gas estimation, alarms, and rollback first. Only then redeploy
-the chosen stage with `-c faucetEnabled=true`. The API must reject new claims
-while this value is false; the reconciliation handler intentionally continues
-processing already signed claims.
+the chosen stage with `-c faucetEnabled=true`. An enabled staging deployment
+also requires `-c allowedClaimAddress=0x...`; use the one explicitly approved
+test recipient, and remove the argument again when disabling staging. The API
+must reject new claims while `FAUCET_ENABLED` is false, and staging must reject
+every recipient except its configured allowlist; the reconciliation handler
+intentionally continues processing already signed claims.
+
+For a single approved staging test, enable with both gates:
+
+```sh
+npx cdk deploy --all --require-approval broadening \
+  -c account=ACCOUNT_ID \
+  -c stage=staging \
+  -c certificateArnStaging=CERTIFICATE_ARN \
+  -c faucetEnabled=true \
+  -c allowedClaimAddress=0xAPPROVED_TEST_RECIPIENT \
+  --parameters AnubisFaucet-Staging:AlertEmail=alerts@example.com \
+  --profile PROFILE
+```
+
+Immediately after the test, redeploy with `-c faucetEnabled=false` and confirm
+that `/api/health` reports `enabled: false`. Do not pass
+`allowedClaimAddress` as a substitute for the disabled gate.
 
 Use a different dedicated sender wallet for every stage, and never use either
 wallet for manual transfers or another service. The DynamoDB active lock is

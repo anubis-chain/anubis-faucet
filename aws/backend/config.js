@@ -28,6 +28,13 @@ function address(env, name) {
   return value.toLowerCase();
 }
 
+function optionalAddress(env, name) {
+  const value = env[name]?.trim();
+  if (!value) return null;
+  if (!/^0x[\da-f]{40}$/i.test(value) || /^0x0{40}$/i.test(value)) throw new Error(`Invalid EVM address configuration: ${name}`);
+  return value.toLowerCase();
+}
+
 function hash(env, name) {
   const value = required(env, name);
   if (!/^0x[\da-f]{64}$/i.test(value)) throw new Error(`Invalid hash configuration: ${name}`);
@@ -65,6 +72,10 @@ function boolean(env, name, fallback = false) {
 }
 
 export function loadConfig(env = process.env) {
+  const appStage = required(env, 'APP_STAGE');
+  if (appStage !== 'staging' && appStage !== 'production') {
+    throw new Error('APP_STAGE must be staging or production.');
+  }
   const rpcUrl = required(env, 'RPC_URL');
   try {
     const parsed = new URL(rpcUrl);
@@ -89,10 +100,16 @@ export function loadConfig(env = process.env) {
   if (!trustCloudFrontViewerAddress) {
     throw new Error('TRUST_CLOUDFRONT_VIEWER_ADDRESS must be true for the CloudFront-only production backend.');
   }
+  const faucetEnabled = env.FAUCET_ENABLED === 'true';
+  const allowedClaimAddress = optionalAddress(env, 'ALLOWED_CLAIM_ADDRESS');
+  if (appStage === 'staging' && faucetEnabled && !allowedClaimAddress) {
+    throw new Error('Enabled staging requires ALLOWED_CLAIM_ADDRESS.');
+  }
 
   return Object.freeze({
     // Deliberately fail closed: only the exact lowercase string enables claims.
-    faucetEnabled: env.FAUCET_ENABLED === 'true',
+    faucetEnabled,
+    allowedClaimAddress,
     tableName: required(env, 'DYNAMODB_TABLE_NAME'),
     secretId: required(env, 'FAUCET_SECRET_ID'),
     chainId: safeInteger(env, 'CHAIN_ID', { min: 1 }),

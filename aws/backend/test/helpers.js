@@ -1,4 +1,5 @@
 export const baseEnv = Object.freeze({
+  APP_STAGE: 'production',
   FAUCET_ENABLED: 'true',
   DYNAMODB_TABLE_NAME: 'anubis-faucet-test',
   FAUCET_SECRET_ID: 'anubis/faucet/test',

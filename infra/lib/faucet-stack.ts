@@ -17,6 +17,7 @@ import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -39,6 +40,19 @@ function decimalToUnits(value: string, decimals: number): string {
   const [whole, fraction = ''] = value.split('.');
   if (fraction.length > decimals) throw new Error('Token amount exceeds token precision.');
   return (BigInt(whole) * 10n ** BigInt(decimals) + BigInt((fraction + '0'.repeat(decimals)).slice(0, decimals) || '0')).toString();
+}
+
+function grantTransactionalClaimAccess(table: dynamodb.Table, fn: lambda.Function): void {
+  table.grant(fn, 'dynamodb:GetItem');
+  fn.addToRolePolicy(new iam.PolicyStatement({
+    actions: ['dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'],
+    resources: [table.tableArn],
+    conditions: {
+      'ForAnyValue:StringEquals': {
+        'dynamodb:EnclosingOperation': ['TransactWriteItems'],
+      },
+    },
+  }));
 }
 
 export class FaucetStack extends Stack {
@@ -141,6 +155,9 @@ export class FaucetStack extends Stack {
       SECRETS_CACHE_MS: '300000',
       NODE_OPTIONS: '--enable-source-maps',
     };
+    if (config.allowedClaimAddress) {
+      commonEnvironment.ALLOWED_CLAIM_ADDRESS = config.allowedClaimAddress;
+    }
 
     const apiLogGroup = new logs.LogGroup(this, 'ApiLogGroup', {
       logGroupName: `/aws/lambda/anubis-faucet-${config.stage}-api`,
@@ -160,7 +177,7 @@ export class FaucetStack extends Stack {
       memorySize: 512,
       timeout: Duration.seconds(55),
     });
-    claimsTable.grant(apiFunction, 'dynamodb:GetItem', 'dynamodb:TransactWriteItems');
+    grantTransactionalClaimAccess(claimsTable, apiFunction);
     runtimeSecret.grantRead(apiFunction);
 
     const apiAlias = new lambda.Alias(this, 'ApiLiveAlias', {
@@ -339,7 +356,7 @@ function handler(event) {
       memorySize: 512,
       timeout: Duration.seconds(50),
     });
-    claimsTable.grant(reconcileFunction, 'dynamodb:GetItem', 'dynamodb:TransactWriteItems');
+    grantTransactionalClaimAccess(claimsTable, reconcileFunction);
     const reconcileAlias = new lambda.Alias(this, 'ReconcileLiveAlias', {
       aliasName: 'live',
       version: reconcileFunction.currentVersion,

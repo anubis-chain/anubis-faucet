@@ -28,6 +28,7 @@ export interface StageConfig {
   readonly apiHandler: string;
   readonly reconcileHandler: string;
   readonly faucetEnabled: boolean;
+  readonly allowedClaimAddress?: string;
   readonly rateLimitPerFiveMinutes: number;
   readonly runtime: FaucetRuntimeConfig;
 }
@@ -121,6 +122,17 @@ export function loadStageConfig(app: App): StageConfig {
   if (![true, false, 'true', 'false'].includes(enabledContext)) {
     throw new Error('faucetEnabled must be true or false.');
   }
+  const allowedClaimAddressContext = app.node.tryGetContext('allowedClaimAddress');
+  let allowedClaimAddress: string | undefined;
+  if (allowedClaimAddressContext !== undefined) {
+    if (typeof allowedClaimAddressContext !== 'string' || !/^0x[\da-f]{40}$/i.test(allowedClaimAddressContext) || /^0x0{40}$/i.test(allowedClaimAddressContext)) {
+      throw new Error('allowedClaimAddress must be a non-zero EVM address when provided.');
+    }
+    allowedClaimAddress = allowedClaimAddressContext.toLowerCase();
+  }
+  if (stage === 'staging' && faucetEnabled && !allowedClaimAddress) {
+    throw new Error('Enabled staging requires -c allowedClaimAddress=<non-zero EVM address>.');
+  }
 
   return {
     stage,
@@ -132,6 +144,7 @@ export function loadStageConfig(app: App): StageConfig {
     apiHandler: contextString(app, 'apiHandler', 'api.handler'),
     reconcileHandler: contextString(app, 'reconcileHandler', 'reconcile.handler'),
     faucetEnabled,
+    allowedClaimAddress,
     rateLimitPerFiveMinutes: rateLimit,
     runtime: loadRuntimeConfig(),
   };

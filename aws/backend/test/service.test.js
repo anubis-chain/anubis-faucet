@@ -45,7 +45,10 @@ function claimFixture(overrides = {}) {
     broadcast: async (...args) => calls.push(['broadcast', ...args]),
     ...overrides.sender,
   };
-  const config = { faucetEnabled: overrides.enabled ?? true };
+  const config = {
+    faucetEnabled: overrides.enabled ?? true,
+    allowedClaimAddress: overrides.allowedClaimAddress ?? null,
+  };
   const service = createFaucetService({ config, store, secrets, verifier, sender, logger, now: () => 1000, uuid: () => claim.claimId });
   return { service, store, sender, logger, calls, claim };
 }
@@ -80,6 +83,32 @@ test('disabled mode rejects before secrets, verification, reservation or signing
   const fixture = claimFixture({ enabled: false });
   await assert.rejects(fixture.service.claim({ recipientAddress: fixture.claim.address, turnstileToken: 'token' }, '192.0.2.1'), error => error.code === 'FAUCET_DISABLED');
   assert.deepEqual(fixture.calls, []);
+});
+
+test('single-recipient mode rejects another address before secrets, verification, reservation or signing', async () => {
+  const fixture = claimFixture({ allowedClaimAddress: '0x2222222222222222222222222222222222222222' });
+  await assert.rejects(
+    fixture.service.claim({ recipientAddress: fixture.claim.address, turnstileToken: 'token' }, '192.0.2.1'),
+    error => error.code === 'RECIPIENT_NOT_ALLOWED' && error.status === 403,
+  );
+  assert.deepEqual(fixture.calls, []);
+});
+
+test('unexpected dependency failures log only a safe stage and error class', async () => {
+  const fixture = claimFixture({
+    store: {
+      reserve: async () => {
+        throw Object.assign(new Error('sensitive upstream detail'), { name: 'ValidationException' });
+      },
+    },
+  });
+  await assert.rejects(
+    fixture.service.claim({ recipientAddress: fixture.claim.address, turnstileToken: 'token' }, '192.0.2.1'),
+    error => error.name === 'ValidationException',
+  );
+  assert.ok(fixture.logger.records.some(record => record.event === 'claim_dependency_failed'
+    && record.operation === 'reserve_claim' && record.code === 'ValidationException'));
+  assert.ok(!JSON.stringify(fixture.logger.records).includes('sensitive upstream detail'));
 });
 
 test('preparation failure atomically releases state and never broadcasts', async () => {
