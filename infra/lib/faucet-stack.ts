@@ -156,9 +156,9 @@ export class FaucetStack extends Stack {
       code: lambda.Code.fromAsset(config.backendAssetPath),
       environment: commonEnvironment,
       logGroup: apiLogGroup,
+      loggingFormat: lambda.LoggingFormat.JSON,
       memorySize: 512,
       timeout: Duration.seconds(55),
-      reservedConcurrentExecutions: 5,
     });
     claimsTable.grant(apiFunction, 'dynamodb:GetItem', 'dynamodb:TransactWriteItems');
     runtimeSecret.grantRead(apiFunction);
@@ -173,16 +173,18 @@ export class FaucetStack extends Stack {
       invokeMode: lambda.InvokeMode.BUFFERED,
     });
 
+    // X-Amz-Content-Sha256 is owned by the Lambda OAC SigV4 flow. CloudFront
+    // rejects attempts to list it in either request policy, but consumes and
+    // forwards the viewer-provided value when it signs a POST origin request.
     const apiOriginRequestPolicy = new cloudfront.OriginRequestPolicy(this, 'ApiOriginRequestPolicy', {
       originRequestPolicyName: `anubis-faucet-${config.stage}-api-origin`,
-      comment: 'Forwards the exact POST hash and adds the trusted CloudFront viewer address.',
+      comment: 'Forwards API metadata and adds the trusted CloudFront viewer address.',
       cookieBehavior: cloudfront.OriginRequestCookieBehavior.none(),
       queryStringBehavior: cloudfront.OriginRequestQueryStringBehavior.all(),
       headerBehavior: cloudfront.OriginRequestHeaderBehavior.allowList(
         'CloudFront-Viewer-Address',
         'Content-Type',
         'Origin',
-        'X-Amz-Content-Sha256',
       ),
     });
 
@@ -333,9 +335,9 @@ function handler(event) {
       code: lambda.Code.fromAsset(config.backendAssetPath),
       environment: commonEnvironment,
       logGroup: reconcileLogGroup,
+      loggingFormat: lambda.LoggingFormat.JSON,
       memorySize: 512,
       timeout: Duration.seconds(50),
-      reservedConcurrentExecutions: 1,
     });
     claimsTable.grant(reconcileFunction, 'dynamodb:GetItem', 'dynamodb:TransactWriteItems');
     const reconcileAlias = new lambda.Alias(this, 'ReconcileLiveAlias', {
@@ -364,11 +366,14 @@ function handler(event) {
 
     // Function URL handlers intentionally convert operational failures into safe
     // JSON 5xx responses, so Lambda's native Errors metric remains zero. Derive
-    // a separate count from the logger's allow-listed event/status fields only.
+    // a separate count from the logger's allow-listed event/status fields nested
+    // under the structured Lambda JSON envelope's message object.
     const apiHandledServerErrors = new logs.MetricFilter(this, 'ApiHandledServerErrorsMetric', {
       logGroup: apiLogGroup,
-      filterPattern: logs.FilterPattern.literal(
-        '%"event":"http_request_failed".*"status":5[0-9][0-9]%',
+      filterPattern: logs.FilterPattern.all(
+        logs.FilterPattern.stringValue('$.message.event', '=', 'http_request_failed'),
+        logs.FilterPattern.numberValue('$.message.status', '>=', 500),
+        logs.FilterPattern.numberValue('$.message.status', '<', 600),
       ),
       metricNamespace: 'AnubisFaucet',
       metricName: `${config.stage}-api-handled-5xx`,
@@ -414,6 +419,13 @@ function handler(event) {
       new cloudwatch.Alarm(this, 'ReconcileErrorsAlarm', {
         alarmName: `anubis-faucet-${config.stage}-reconcile-errors`,
         metric: reconcileFunction.metricErrors({ period: Duration.minutes(5), statistic: 'Sum' }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }),
+      new cloudwatch.Alarm(this, 'ReconcileThrottlesAlarm', {
+        alarmName: `anubis-faucet-${config.stage}-reconcile-throttles`,
+        metric: reconcileFunction.metricThrottles({ period: Duration.minutes(5), statistic: 'Sum' }),
         threshold: 1,
         evaluationPeriods: 1,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,

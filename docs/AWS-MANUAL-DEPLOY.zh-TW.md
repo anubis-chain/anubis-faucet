@@ -66,7 +66,11 @@ aws acm describe-certificate \
   --profile anubis-faucet
 ```
 
-只有狀態成為 `ISSUED` 才可綁定正式域名。
+只有狀態成為 `ISSUED` 才可綁定正式域名。ACM 公開憑證不是一張有效
+15 年的固定憑證；目前每張有效 198 日。只要憑證仍綁在 CloudFront，並且
+Cloudflare 上的 ACM 驗證 CNAME 一直保留為 DNS-only，ACM 會在到期前自動
+驗證及續期，因此服務可以持續運作 15 年以上而毋須人工逐次換證。不可刪除
+這些驗證記錄。
 
 ## 5. 本機建置與測試
 
@@ -127,7 +131,10 @@ npx cdk deploy --all --require-approval broadening \
 
 保存輸出的 CloudFront domain、Runtime Secret ARN、Lambda names 和 DynamoDB table name。
 
-若新帳戶選用 AWS **Paid account plan**，可把每個 stage 各自加入 CloudFront `FREE` flat-rate plan。這個 $0/月 plan 可涵蓋該 distribution 及其專用 WAF；AWS 要求每個 subscription 恰好一個 CloudFront ARN 及一個 WAF ARN，兩者都由 stack 輸出：
+若新帳戶選用 AWS **Paid account plan**，而且 AWS 判定相關資源符合資格，
+可嘗試把每個 stage 各自加入 CloudFront `FREE` flat-rate plan。這個 $0/月
+plan 可涵蓋該 distribution 及其專用 WAF；AWS 要求每個 subscription 恰好
+一個 CloudFront ARN 及一個 WAF ARN，兩者都由 stack 輸出：
 
 ```sh
 aws pricing-plan-manager create-subscription \
@@ -138,7 +145,12 @@ aws pricing-plan-manager create-subscription \
   --profile anubis-faucet
 ```
 
-回傳狀態應成為 `ACTIVE`。若帳戶選的是 AWS Free account plan，則不符合申請資格，繼續使用 pay-as-you-go 即可。不要在未另行人工批准收費的情況下改用 `PRO`、`BUSINESS` 或 `PREMIUM`。
+只有回傳狀態成為 `ACTIVE` 才代表成功。2026-09-11 對目前 staging 安全設定
+的實際申請結果是 `resources are not eligible for this subscription tier`，因此
+沒有建立 subscription 或產生 plan 費用，現時繼續使用 pay-as-you-go。保留
+現有 OAC、request/response policy 與安全 headers，不為了符合免費 plan 而
+削弱設定。不要在未另行人工批准收費的情況下改用 `PRO`、`BUSINESS` 或
+`PREMIUM`。
 
 ## 7. 設定普通 faucet 錢包與 Turnstile Secret
 
@@ -205,6 +217,7 @@ Cloudflare 會對 apex CNAME flatten。不要先開橙雲；否則可信 IP、WA
 ## 10. 緊急停止與回滾
 
 - 停止新 claim：優先以 `faucetEnabled=false` 重新部署；若屬即時事故，才把 API Lambda reserved concurrency 設為 0。
+- 事故後先以 `faucetEnabled=false` 部署，再用 `delete-function-concurrency` 把 API 恢復至共用併發池；目前新帳戶的區域配額只有 10，不可直接恢復成 reserved concurrency 5。
 - 不要停止 reconcile Lambda；它必須繼續處理已簽署交易。
 - 不要因 timeout 刪除 `signed` lock 或重新簽另一筆 nonce 未核對的交易。
 - Lambda 以 `live` alias 指向版本，可人工切回上一版本。
@@ -220,10 +233,20 @@ CDK、建置及測試命令已版本化。日後 GitHub Actions 只需以 OIDC �
 
 以下為 2026-09-11 的低流量估算，不含稅、已購買的 domain、錢包內 DAI 及鏈上 gas：
 
-- 若成功加入 CloudFront `FREE` flat-rate plan：production 約 **USD 1–3/月**；長期保留 staging 再加約 **USD 1–3/月**。
-- 若不符合或不加入該 plan：目前三條 WAF 規則連同 Web ACL 約 USD 8/月，整個 stage 約 **USD 9–11/月**。
-- 固定項主要是 Secrets Manager 約 USD 0.40/secret/月，以及 6 個標準 CloudWatch alarms 約 USD 0.60/月；低流量 Lambda、DynamoDB、S3、EventBridge、SQS、SNS 及 logs 通常只是免費額度內或零碎費用。
+- 目前 staging 未獲 CloudFront `FREE` flat-rate plan 接納，按 pay-as-you-go
+  計費：三條 WAF 規則連同 Web ACL 約 USD 8/月，整個 stage 約
+  **USD 8.5–10/月**；帳務上可預留 **USD 10–12/月**。
+- 若日後 AWS 接納 `FREE` plan，單一低流量 stage 才可能降至約
+  **USD 1–3/月**；在 AWS 顯示 subscription 為 `ACTIVE` 前不可把它計入預算。
+- 固定項主要是 WAF 約 USD 8/月及 Secrets Manager 約 USD 0.40/secret/月。
+  CloudWatch 每月前 10 個 standard alarm metrics 免費，所以帳戶目前這 7 個
+  alarms 預計為 USD 0；若日後其他 alarms 用盡免費額度，7 個最多約
+  USD 0.70/月。CloudFront PAYG 的 Always Free 額度足以涵蓋這個預期低流量
+  stage；Lambda、DynamoDB、S3、EventBridge、SQS、SNS 及 logs 通常也只是
+  免費額度內或零碎費用。
 - Turnstile Free plan 為 USD 0；ACM public certificate 亦不另收憑證月費。
+- 若 staging 與同等 production 長期同時保留，兩套合計約
+  **USD 17–20/月**。
 - faucet 的資產流出另計：目前每日上限 100 次、每次 1 DAI，31 日的理論最高派發量為 **3,100 DAI 加 gas**。這是風險上限，不代表預期用量；可日後把 `DAILY_CLAIM_CAP` 調低。
 
-正式帳單仍以 AWS Pricing Calculator、Billing 與 Cost Explorer 為準。參考：[CloudFront flat-rate plans](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/flat-rate-pricing-plan.html)、[AWS WAF pricing](https://aws.amazon.com/waf/pricing/)、[Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/)、[Lambda pricing](https://aws.amazon.com/lambda/pricing/)、[Turnstile plans](https://developers.cloudflare.com/turnstile/plans/)。
+正式帳單仍以 AWS Pricing Calculator、Billing 與 Cost Explorer 為準。參考：[CloudFront flat-rate plans](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/flat-rate-pricing-plan.html)、[CloudFront PAYG pricing](https://aws.amazon.com/cloudfront/pricing/pay-as-you-go/)、[AWS WAF pricing](https://aws.amazon.com/waf/pricing/)、[CloudWatch pricing](https://aws.amazon.com/cloudwatch/pricing/)、[Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/)、[Lambda pricing](https://aws.amazon.com/lambda/pricing/)、[Turnstile plans](https://developers.cloudflare.com/turnstile/plans/)。

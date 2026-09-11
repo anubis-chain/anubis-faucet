@@ -19,7 +19,7 @@ export function createLogger(sink = console, now = () => new Date().toISOString(
       if (safe !== undefined) record[key] = safe;
     }
     const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
-    sink[method](JSON.stringify(record));
+    sink[method](record);
   }
   return {
     info: (event, fields) => write('info', event, fields),

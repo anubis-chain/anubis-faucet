@@ -32,6 +32,6 @@ test('structured logger drops unapproved and secret-bearing fields', () => {
     requestId: 'r1', code: 'SAFE', privateKey: `0x${'1'.repeat(64)}`,
     rawTx: '0xdead', ip: '192.0.2.1', token: 'captcha', error: new Error('sensitive'),
   });
-  const record = JSON.parse(lines[0]);
-  assert.deepEqual(record, { timestamp: '2026-09-11T00:00:00.000Z', level: 'error', event: 'failed', requestId: 'r1', code: 'SAFE' });
+  assert.equal(typeof lines[0], 'object');
+  assert.deepEqual(lines[0], { timestamp: '2026-09-11T00:00:00.000Z', level: 'error', event: 'failed', requestId: 'r1', code: 'SAFE' });
 });
