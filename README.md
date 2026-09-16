@@ -23,7 +23,7 @@ This repository is the **development source** for the hosted faucet. Production 
 | `infra/` | AWS CDK stacks for staging and production |
 | `worker/` | **Legacy** Cloudflare Worker path (not production). Kept for unit tests and history only; live traffic uses AWS. |
 | `tests/` | Playwright and worker tests |
-| `docs/DEPLOY.md` | Operator deployment guide (English) |
+| `docs/DEPLOY.md` | Operator deployment guide |
 
 ## Local development
 
