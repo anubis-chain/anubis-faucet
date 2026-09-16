@@ -7,7 +7,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',
-    channel: 'chrome',
+    // Local runs can use installed Chrome; CI uses Playwright's Chromium.
+    ...(process.env.CI ? {} : { channel: 'chrome' as const }),
     headless: true,
     viewport: { width: 1440, height: 1000 },
     screenshot: 'only-on-failure',

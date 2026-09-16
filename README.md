@@ -1,6 +1,6 @@
 # Anubis Testnet DAI Faucet
 
-A production-operated ERC-20 DAI faucet for Anubis Testnet. The application is deployed manually to AWS Singapore, while Cloudflare remains responsible for DNS and Turnstile.
+Open-source source for the production-operated ERC-20 DAI faucet on Anubis Testnet. Clone and run locally for development; the hosted product is the [live faucet](https://anubisfaucets.com). The application is deployed manually to AWS Singapore, while Cloudflare remains responsible for DNS and Turnstile.
 
 [Live faucet](https://anubisfaucets.com) · [AWS deployment guide](docs/AWS-MANUAL-DEPLOY.zh-TW.md) · [Detailed handoff guide](docs/HANDOFF.md)
 
@@ -12,7 +12,7 @@ A production-operated ERC-20 DAI faucet for Anubis Testnet. The application is d
 | Canonical source | `main` |
 | Deployment tracking branch | `deploy/aws-production` |
 | AWS region | Singapore (`ap-southeast-1`) |
-| Release process | Manual AWS CDK deployment; no Jenkins or CI/CD |
+| Release process | Manual AWS CDK deployment; GitHub Actions runs tests only (no auto-deploy) |
 | Cloudflare | DNS-only records and Turnstile |
 
 The production frontend and API share the same CloudFront distribution. The legacy Cloudflare Worker implementation remains in this repository for handoff reference and regression testing; it is not the current production path.
@@ -95,6 +95,18 @@ VITE_FAUCET_API_URL=/ \
 VITE_TURNSTILE_SITE_KEY=0x4AAAAAAEv-TZyEqCPXlFdQ \
 npm run build
 ```
+
+
+## Continuous integration
+
+Pull requests and pushes to `main` (and `deploy/aws-production`) run GitHub Actions:
+
+- Worker unit tests
+- Playwright browser tests
+- AWS Lambda backend tests
+- CDK TypeScript typecheck for `infra/`
+
+CI does **not** deploy to AWS and does not need production secrets. Production releases stay a manual CDK process — see [the AWS manual deployment guide](docs/AWS-MANUAL-DEPLOY.zh-TW.md).
 
 ## Validation
 
