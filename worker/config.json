@@ -1,0 +1,9 @@
+{
+  "allowedOrigins": [],
+  "turnstile": {
+    "hostnames": [
+      "faucet.example.com"
+    ],
+    "action": "faucet_claim"
+  }
+}

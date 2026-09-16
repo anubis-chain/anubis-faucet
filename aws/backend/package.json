@@ -1,0 +1,23 @@
+{
+  "name": "@anubis/faucet-aws-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.js",
+    "check": "node --check *.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1130.0",
+    "@aws-sdk/client-secrets-manager": "3.1130.0",
+    "@aws-sdk/lib-dynamodb": "3.1130.0",
+    "viem": "2.56.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

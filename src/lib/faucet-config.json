@@ -1,0 +1,24 @@
+{
+  "chain": {
+    "name": "Anubis Test",
+    "id": 202601,
+    "rpcUrl": "https://cheras-rpc.anubispace.org/rpc",
+    "blockExplorer": "https://cheras-rpc.anubispace.org",
+    "nativeCurrency": {
+      "name": "DAI",
+      "symbol": "DAI",
+      "decimals": 18
+    }
+  },
+  "tokens": [{
+    "address": "0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14",
+    "name": "Dai Stablecoin",
+    "symbol": "DAI",
+    "decimals": 18
+  }],
+  "distribution": {
+    "nativeAmount": "",
+    "tokenAmount": "1",
+    "rateLimitHours": "24"
+  }
+}
