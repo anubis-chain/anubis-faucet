@@ -1,0 +1,26 @@
+{
+  "name": "anubis-faucet-infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --all --require-approval broadening",
+    "destroy:staging": "cdk destroy --all -c stage=staging"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.269.0",
+    "constructs": "^10.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "aws-cdk": "2.1131.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "anubis-testnet-faucet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "npm run test:worker && playwright test",
+    "test:worker": "node --test tests/worker/*.test.js",
+    "worker:dev": "npm run build && wrangler dev --ip 127.0.0.1 --port 8787",
+    "worker:check": "npm run build && wrangler deploy --dry-run --outdir .worker-build",
+    "worker:deploy": "npm run build && wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "miniflare": "^5.20260910.0-alpha",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "wrangler": "^4.130.0"
+  },
+  "overrides": {
+    "miniflare": "^5.20260910.0-alpha",
+    "ws@^8": "^8.21.0",
+    "axios": "^1.18.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
