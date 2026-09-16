@@ -15,7 +15,7 @@
     "@aws-sdk/client-dynamodb": "3.1130.0",
     "@aws-sdk/client-secrets-manager": "3.1130.0",
     "@aws-sdk/lib-dynamodb": "3.1130.0",
-    "viem": "2.56.3"
+    "viem": "2.56.5"
   },
   "devDependencies": {
     "esbuild": "0.25.12"
