@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, deploy/aws-production]
+    branches: [main]
   pull_request:
     branches: [main]
 

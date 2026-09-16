@@ -49,7 +49,7 @@ cd ../../infra && npm ci && npm run build
 
 ## Continuous integration
 
-Pushes and pull requests to `main` (and pushes to `deploy/aws-production`) run:
+Pushes and pull requests to `main` run:
 
 - Worker unit tests
 - Playwright browser tests
