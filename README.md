@@ -21,7 +21,7 @@ This repository is the **development source** for the hosted faucet. Production 
 | `src/` | React frontend |
 | `aws/backend/` | Lambda API (signing, cooldowns, reconciliation) |
 | `infra/` | AWS CDK stacks for staging and production |
-| `worker/` | Legacy Cloudflare Worker (reference + unit tests) |
+| `worker/` | **Legacy** Cloudflare Worker path (not production). Kept for unit tests and history only; live traffic uses AWS. |
 | `tests/` | Playwright and worker tests |
 | `docs/DEPLOY.md` | Operator deployment guide (English) |
 
@@ -64,4 +64,4 @@ See [docs/DEPLOY.md](docs/DEPLOY.md). Production secrets stay in AWS Secrets Man
 
 ## License
 
-See repository license terms if present; brand assets remain with their respective owners.
+MIT — see [LICENSE](LICENSE). Brand and visual assets remain with their respective owners.
