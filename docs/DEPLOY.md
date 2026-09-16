@@ -1,6 +1,6 @@
 # Anubis Faucet deployment guide
 
-English operator guide for the AWS Singapore deployment. This is a **manual** CDK release process. GitHub Actions only run tests; they do not deploy.
+Operator guide for the AWS Singapore deployment. This is a **manual** CDK release process. GitHub Actions only run tests; they do not deploy.
 
 ## Scope
 
