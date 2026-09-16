@@ -18,6 +18,6 @@
     "viem": "2.56.3"
   },
   "devDependencies": {
-    "esbuild": "0.25.12"
+    "esbuild": "0.28.2"
   }
 }
