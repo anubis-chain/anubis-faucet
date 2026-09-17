@@ -1,8 +1,11 @@
 # Anubis Testnet DAI Faucet
 
+[![CI](https://github.com/anubis-chain/anubis-faucet/actions/workflows/ci.yml/badge.svg)](https://github.com/anubis-chain/anubis-faucet/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Open-source source for the Anubis Testnet ERC-20 DAI faucet.
 
-**[Live faucet](https://anubisfaucets.com)** · Chain ID `202601` · Token DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`
+**[Live faucet](https://anubisfaucets.com)** · [Mainnet explorer](https://anubisscan.io/) · Chain ID `202601` · Token DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`
 
 This repository is the **development source** for the hosted faucet. Production runs on AWS (Singapore) with Cloudflare DNS and Turnstile. GitHub Actions run tests only; releases are deployed manually with AWS CDK.
 
@@ -65,3 +68,7 @@ See [docs/DEPLOY.md](docs/DEPLOY.md). Production secrets stay in AWS Secrets Man
 ## License
 
 MIT — see [LICENSE](LICENSE). Brand and visual assets remain with their respective owners.
+
+## Security
+
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do not include exploit details in a public issue.
