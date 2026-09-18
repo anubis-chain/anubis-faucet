@@ -3,72 +3,90 @@
 [![CI](https://github.com/anubis-chain/anubis-faucet/actions/workflows/ci.yml/badge.svg)](https://github.com/anubis-chain/anubis-faucet/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Open-source source for the Anubis Testnet ERC-20 DAI faucet.
+Open-source React application and Cloudflare Worker for an **Anubis Testnet ERC-20 DAI faucet**.
 
-**[Live faucet](https://anubisfaucets.com)** · [Mainnet explorer](https://anubisscan.io/) · Chain ID `202601` · Token DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`
+**[Live faucet](https://anubisfaucets.com)** · Chain ID `202601` · DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`
 
-This repository is the **development source** for the hosted faucet. Production runs on AWS (Singapore) with Cloudflare DNS and Turnstile. GitHub Actions run tests only; releases are deployed manually with AWS CDK.
+The public repository is intended for learning, local development, testing, and self-hosting. It does not contain the live service's credentials, database, wallet, or production infrastructure.
 
-## What it does
+## Features
 
-- Pays out exactly **1 DAI** per successful claim
-- 24-hour cooldown per recipient address and per source network
-- Optional wallet connect (EIP-6963); paste-an-address claims also work
-- Server-side Cloudflare Turnstile verification
-- AWS Lambda API, DynamoDB cooldowns, Secrets Manager for the sender key
+- Sends a configurable ERC-20 amount; the included Anubis Test configuration sends **1 DAI**
+- Applies a 24-hour cooldown to the recipient address and client network identity
+- Supports browser wallets discovered through EIP-6963 and manually entered addresses
+- Verifies Cloudflare Turnstile tokens on the server
+- Stores claims in D1 before broadcasting and reconciles pending transactions
+- Includes Worker unit tests and Playwright browser tests
 
-## Repository layout
+## Try the interface locally
 
-| Path | Purpose |
-| --- | --- |
-| `src/` | React frontend |
-| `aws/backend/` | Lambda API (signing, cooldowns, reconciliation) |
-| `infra/` | AWS CDK stacks for staging and production |
-| `worker/` | **Legacy** Cloudflare Worker path (not production). Kept for unit tests and history only; live traffic uses AWS. |
-| `tests/` | Playwright and worker tests |
-| `docs/DEPLOY.md` | Operator deployment guide |
-
-## Local development
-
-Requires Node.js 24+.
+Requires Node.js 24 or newer.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Copy `.env.example` for frontend env. Never put private keys or Turnstile secrets in `VITE_*` variables.
+Open `http://127.0.0.1:5173`. This starts the web interface only; a claim requires a configured Worker API.
+
+## Run the complete local stack
+
+Copy the example configuration and add local-only values:
 
 ```sh
-# Worker unit tests + Playwright
-npm test
-
-# AWS backend tests
-cd aws/backend && npm ci && npm test
-
-# CDK typecheck
-cd ../../infra && npm ci && npm run build
+cp .env.example .env.local
+cp .dev.vars.example .dev.vars
+npm run db:migrate:local
+npm run worker:dev
 ```
 
-## Continuous integration
+Then open `http://127.0.0.1:8787`.
 
-Pushes and pull requests to `main` run:
+Use Cloudflare's Turnstile test keys and a disposable, low-balance test wallet. The Worker can broadcast a real transaction when supplied with a real private key and reachable RPC, so do not use a personal or production wallet.
 
-- Worker unit tests
-- Playwright browser tests
-- AWS backend tests
-- CDK TypeScript typecheck
+See [docs/DEPLOY.md](docs/DEPLOY.md) for configuration and self-hosting instructions.
 
-CI does **not** deploy and does not need production secrets.
+## Test and build
 
-## Deployment
+```sh
+npm test
+npm run build
+npm run worker:check
+```
 
-See [docs/DEPLOY.md](docs/DEPLOY.md). Production secrets stay in AWS Secrets Manager.
+`worker:check` performs a production build and Wrangler dry run. It does not deploy.
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| `src/` | React and TypeScript frontend |
+| `public/assets/` | Static brand and interface assets |
+| `worker/` | Worker API, D1 storage, token sender, Turnstile verification, and reconciliation |
+| `worker/migrations/` | D1 database migrations |
+| `tests/` | Worker and browser tests |
+| `wrangler.jsonc` | Self-hosting template with placeholder D1 identifiers |
+| `docs/DEPLOY.md` | Cloudflare deployment guide |
+
+## Configuration
+
+The checked-in settings target Anubis Test. Review these files before running a claim service:
+
+- `src/lib/faucet-config.json`: chain, RPC, explorer, token, amount, and cooldown
+- `worker/config.json`: allowed frontend origins and Turnstile hostnames
+- `.env.example`: public frontend settings
+- `.dev.vars.example`: local Worker secrets template
+
+Never commit a faucet private key, Turnstile secret, funded test wallet, `.dev.vars`, or production environment file.
+
+## Production note
+
+The live faucet may use separately managed infrastructure. This repository provides a portable source implementation; publishing it does not grant access to, modify, or redeploy the live service.
+
+## Security
+
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do not include exploit details or credentials in a public issue.
 
 ## License
 
 MIT — see [LICENSE](LICENSE). Brand and visual assets remain with their respective owners.
-
-## Security
-
-Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do not include exploit details in a public issue.
