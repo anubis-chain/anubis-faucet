@@ -1,72 +1,128 @@
-# Anubis Faucet deployment guide
+# Self-hosting the Anubis Testnet faucet
 
-Operator guide for the AWS Singapore deployment. This is a **manual** CDK release process. GitHub Actions only run tests; they do not deploy.
+This guide deploys the open-source faucet to **Cloudflare Workers + D1**. It does not reproduce or modify the infrastructure behind the live `anubisfaucets.com` service.
 
-## Scope
+## Before you start
 
-| Item | Value |
+You need:
+
+- Node.js 24 or newer
+- A Cloudflare account with Workers, D1, and Turnstile access
+- A dedicated disposable faucet wallet
+- Testnet DAI for payouts and the required Anubis Test gas balance
+
+Never use a personal wallet or reuse a production private key.
+
+## 1. Install and verify
+
+```sh
+npm ci
+npm test
+npm run worker:check
+```
+
+The dry run does not publish anything.
+
+## 2. Review the faucet settings
+
+`src/lib/faucet-config.json` is shared by the frontend and Worker. Confirm the chain ID, RPC, explorer, token contract, decimals, payout amount, and cooldown before deployment.
+
+The included configuration targets Anubis Test:
+
+| Setting | Included value |
 | --- | --- |
-| Live site | https://anubisfaucets.com |
-| Staging (optional) | https://staging.anubisfaucets.com |
-| AWS app region | `ap-southeast-1` (Singapore) |
-| CloudFront / WAF / ACM | `us-east-1` |
-| DNS | Cloudflare DNS-only (grey cloud) |
-| Chain | Anubis Test, chain ID `202601` |
-| Token | DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`, 18 decimals, 1 DAI per claim |
+| Chain ID | `202601` |
+| RPC | `https://cheras-rpc.anubispace.org/rpc` |
+| Token | DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14` |
+| Amount | `1` DAI |
+| Cooldown | 24 hours |
 
-## Architecture
+This faucet transfers ERC-20 tokens. `distribution.nativeAmount` must remain empty.
 
-- CloudFront + AWS WAF in front of a private S3 origin (frontend) and an IAM-protected Lambda Function URL (API)
-- DynamoDB for atomic claim cooldowns (address + hashed network identity)
-- Secrets Manager for the faucet sender private key and Turnstile secret
-- EventBridge-triggered reconciliation Lambda
-- Cloudflare Turnstile for bot checks; DNS remains on Cloudflare
+## 3. Create D1
 
-## Before you deploy
-
-1. Use AWS IAM Identity Center short-lived credentials (do not commit long-lived access keys).
-2. Provision **separate** low-balance sender wallets for staging and production. Never share keys across stages.
-3. Fund each sender with enough DAI on Anubis Test for payouts and gas (pre-Aria gas is charged from the DAI system-contract balance).
-4. Create Turnstile keys; put the **site** key in the frontend build env and the **secret** in Secrets Manager only.
-5. Keep `faucetEnabled=false` until preflight passes.
-
-## Build frontend
+Authenticate Wrangler and create a database:
 
 ```sh
-npm ci
-VITE_FAUCET_API_URL=/ \
-VITE_TURNSTILE_SITE_KEY=<public-turnstile-site-key> \
-npm run build
+npx wrangler login
+npx wrangler d1 create anubis-faucet
 ```
 
-## Deploy with CDK
-
-From `infra/`:
+Put the returned database ID in `wrangler.jsonc`, replacing the all-zero placeholder. Keep the binding name `DB`, then apply the migration:
 
 ```sh
-npm ci
-npm run build
-npx cdk diff -c stage=production
-npx cdk deploy --all -c stage=production --require-approval broadening
+npm run db:migrate:remote
 ```
 
-Always run `cdk diff` before deploy. A frontend-only release must not change Lambda, DynamoDB, IAM, WAF, or secret configuration.
+## 4. Configure Turnstile and the frontend
 
-## Enable traffic
+Create a Turnstile widget for the hostname that will serve the faucet. Put the hostname, without a protocol or path, in `worker/config.json`.
 
-1. Confirm CloudFront serves the new UI and `/api` routes.
-2. Confirm Secrets Manager values for the target stage.
-3. Run a single allowlisted test claim if staging is enabled with a dedicated sender.
-4. Set `faucetEnabled=true` for production only after preflight succeeds.
-5. Watch CloudWatch alarms and the sender DAI balance.
+Copy the frontend environment template:
 
-## Security rules
+```sh
+cp .env.example .env.production
+```
 
-- Private keys and Turnstile secrets never go in git, frontend env, or CI.
-- Staging must stay disabled while it shares a production sender wallet.
-- Prefer DNS-only Cloudflare records unless the trusted client-IP design is revisited.
-- Monitor abuse (cooldown hits, WAF, claim volume) even when traffic is low.
+Set:
 
-## Rollback
+```dotenv
+VITE_FAUCET_API_URL=/
+VITE_TURNSTILE_SITE_KEY=your-public-site-key
+```
 
-Redeploy the previous known-good CDK revision / frontend artifact, or set `faucetEnabled=false` immediately if the sender key or API misbehaves.
+The Site Key is public. The Turnstile Secret Key is not and must never use a `VITE_` variable.
+
+If the frontend and API use different origins, add the exact frontend origin to `worker/config.json`. Same-origin deployments should leave `allowedOrigins` empty.
+
+## 5. Deploy and add secrets
+
+Deploy the code first:
+
+```sh
+npm run worker:deploy
+```
+
+Store the secrets through Wrangler's interactive prompt:
+
+```sh
+npx wrangler secret put FAUCET_PRIVATE_KEY
+npx wrangler secret put TURNSTILE_SECRET_KEY
+```
+
+Do not place secret values in command arguments, tracked files, screenshots, or CI logs.
+
+Fund only the address derived from the configured faucet key. It needs the configured ERC-20 DAI for payouts and the chain's required gas balance.
+
+## 6. Verify safely
+
+1. Open the deployed homepage and check the displayed chain, token, amount, and explorer.
+2. Confirm `/api/health` returns HTTP 200.
+3. Confirm a claim without a valid Turnstile response is rejected.
+4. Use a new recipient address for one small test claim.
+5. Verify the ERC-20 `Transfer` event and recipient balance on the explorer.
+6. Repeat with the same address and confirm the cooldown is enforced.
+
+A submitted transaction hash is not proof of payment. Verify the receipt and matching token event.
+
+## Local full-stack development
+
+```sh
+cp .env.example .env.local
+cp .dev.vars.example .dev.vars
+npm run db:migrate:local
+npm run worker:dev
+```
+
+Open `http://127.0.0.1:8787`. Use Turnstile test keys and a disposable development wallet. A real key and live RPC can result in real broadcasts even when the Worker runs locally.
+
+## Operations
+
+- Run `npm test` before every release.
+- Apply new D1 migrations before deploying code that depends on them.
+- Keep the faucet wallet deliberately low balance.
+- Monitor failed claims, cooldown responses, pending transactions, RPC errors, and wallet balances.
+- Disable or remove the Worker route immediately if its private key may be exposed.
+- Do not delete D1 claim records to bypass cooldowns or pending-transaction locks.
+
+Code rollback does not roll back D1 data or on-chain transactions. Confirm schema and pending-transaction compatibility before using Wrangler rollback.

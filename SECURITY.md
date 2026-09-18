@@ -15,4 +15,4 @@ Email **anubis.chain@proton.me** with:
 
 Do not open a public issue or publish exploit details before the maintainers have had an opportunity to investigate and coordinate a fix.
 
-Never send private keys, seed phrases, AWS credentials, or other production secrets. If a report involves an exposed credential, identify where it was observed without copying the secret into the report.
+Never send private keys, seed phrases, cloud-provider credentials, or other production secrets. If a report involves an exposed credential, identify where it was observed without copying the secret into the report.
