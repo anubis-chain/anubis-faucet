@@ -3,11 +3,11 @@
 [![CI](https://github.com/anubis-chain/anubis-faucet/actions/workflows/ci.yml/badge.svg)](https://github.com/anubis-chain/anubis-faucet/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Open-source React application and Cloudflare Worker for an **Anubis Testnet ERC-20 DAI faucet**.
+Source code for the **Anubis Testnet ERC-20 DAI faucet**, including the React frontend and Cloudflare Worker.
 
 **[Live faucet](https://anubisfaucets.com)** · Chain ID `202601` · DAI `0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14`
 
-The public repository is intended for learning, local development, testing, and self-hosting. It does not contain the live service's credentials, database, wallet, or production infrastructure.
+For local development, testing, and self-hosting. Production credentials and infrastructure are not included.
 
 ## Features
 
@@ -78,10 +78,6 @@ The checked-in settings target Anubis Test. Review these files before running a 
 - `.dev.vars.example`: local Worker secrets template
 
 Never commit a faucet private key, Turnstile secret, funded test wallet, `.dev.vars`, or production environment file.
-
-## Production note
-
-The live faucet may use separately managed infrastructure. This repository provides a portable source implementation; publishing it does not grant access to, modify, or redeploy the live service.
 
 ## Security
 
